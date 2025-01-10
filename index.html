@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Excel File</title>
+</head>
+<body>
+    <h1>Upload Excel File</h1>
+
+    <!-- File Input -->
+    <input type="file" id="fileInput" accept=".xlsm" />
+    <button id="submitButton">Upload File</button>
+
+    <script>
+        // Function to handle form submission
+        document.getElementById("submitButton").addEventListener("click", function () {
+            const fileInput = document.getElementById("fileInput");
+
+            // Check if a file has been selected
+            if (!fileInput.files[0]) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            // Create a FormData object and append the file
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            // Request options
+            const requestOptions = {
+                method: "POST",
+                body: formData,
+                redirect: "follow"
+            };
+
+            // Send the request via fetch
+            fetch("http://localhost:5000/upload-excel", requestOptions)
+                .then(response => response.text())  // Assuming the response is plain text (or you can modify to handle a file)
+                .then(result => {
+                    console.log(result); // Print server response (you can replace with more handling)
+                    alert("File uploaded successfully!");
+                })
+                .catch((error) => {
+                    console.error("Error during upload:", error);
+                    alert("An error occurred while uploading the file.");
+                });
+        });
+    </script>
+</body>
+</html>
