@@ -11,3 +11,4 @@ $excel.Run($macroName)
 $workbook.Save()
 $workbook.Close()
 $excel.Quit()
+Start-Sleep -Seconds 2  # Add a 2-second delay

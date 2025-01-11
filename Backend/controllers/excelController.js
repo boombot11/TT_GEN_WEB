@@ -7,12 +7,12 @@ import AdmZip from 'adm-zip';
 // Get the directory name for ES Modules
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
 
-const executeExcelMacro = (filePath, macroName, userInputLab, userInputLecture) => {
+const executeExcelMacro = (filePath, macroName, userInputLab, userInputLecture, socket) => {
     return new Promise((resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'runDynamicMacro.ps1').slice(1);
         console.log("Dynamic input lab: " + userInputLab);
         console.log("Dynamic input lecture: " + userInputLecture);
-        
+
         // Construct the PowerShell command with all necessary arguments
         const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}"`;
 
@@ -28,171 +28,149 @@ const executeExcelMacro = (filePath, macroName, userInputLab, userInputLecture) 
     });
 };
 
-const executeCommand = (command) => {
+const executeCommand = (command, socket, step) => {
     return new Promise((resolve, reject) => {
+        socket.emit('processing-status', step);
         exec(command, (err, stdout, stderr) => {
             if (err) {
-                console.error('Error executing PowerShell extractSheets script:', stderr);
+                console.error('Error executing PowerShell script:', stderr);
                 return reject(err);
             }
-            console.log('Sheets extracted successfully:', stdout);
+            console.log('PowerShell script executed successfully:', stdout); // Debug print
             resolve(stdout);
         });
     });
 };
 
-
-const extractSheets = (filePath, rooms, labs) => {
-    return new Promise (async(resolve, reject) => {
+const extractSheets = (filePath, rooms, labs, socket) => {
+    return new Promise(async (resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'ExtractSheets.ps1').slice(1);
         const newRoomFilePath = path.join(__dirname, 'gen', 'room.xlsx').slice(1);
         const newLabFilePath = path.join(__dirname, 'gen', 'lab.xlsx').slice(1);
         const newTeacherFilePath = path.join(__dirname, 'gen', 'teachers.xlsx').slice(1);
-       const TeacherScript=path.join(__dirname, 'teachersExtract.ps1').slice(1)
+        const TeacherScript = path.join(__dirname, 'teachersExtract.ps1').slice(1);
+
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
         console.log('FilePath:', filePath); // Debug print
         console.log("psScriptPath:", psScriptPath);
         console.log(rooms);
-        console.log(labs)
+        console.log(labs);
+
         if (typeof rooms === 'string') {
             rooms = rooms.split(' '); // Split by space into an array
         }
         if (typeof labs === 'string') {
             labs = labs.split(' '); // Split by space into an array
         }
-        
 
         for (let i = 0; i < Math.max(rooms.length, labs.length); i++) {
-           
-            const room = rooms[i] || null;  // If there's no room at this index, pass null
-            const lab = labs[i] || null;    // If there's no lab at this index, pass null
-            console.log(room, lab);
-            console.log(i);
-            // Construct the PowerShell command for each iteration
+            const room = rooms[i] || null;
+            const lab = labs[i] || null;
+
+            console.log(`Processing room: ${room}, lab: ${lab}`);
+
+            // Construct the PowerShell command for teacher extraction
             const teacher = `powershell -ExecutionPolicy ByPass -File "${TeacherScript}" -excelFilePath "${filePath}" `
-            + `-rooms "${room}" -labs "${lab}" `
-            + `-newRoomFilePath "${newRoomFilePath}" `
-            + `-newLabFilePath "${newLabFilePath}" `
-            + `-newTeacherFilePath "${newTeacherFilePath}"`;
-            if(i==0){
-                await executeCommand(teacher);
-                    }
+                + `-rooms "${room}" -labs "${lab}" `
+                + `-newRoomFilePath "${newRoomFilePath}" `
+                + `-newLabFilePath "${newLabFilePath}" `
+                + `-newTeacherFilePath "${newTeacherFilePath}"`;
+
+            if (i === 0) {
+                await executeCommand(teacher, socket, `Step ${i + 1}: Executing teacher extraction for room ${room} and lab ${lab}`);
+            }
+
             const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" -excelFilePath "${filePath}" `
-            + `-rooms "${room}" -labs "${lab}" `
-            + `-newRoomFilePath "${newRoomFilePath}" `
-            + `-newLabFilePath "${newLabFilePath}" `
-            + `-newTeacherFilePath "${newTeacherFilePath}"`;
-                try {
-            
-                    await executeCommand(command);
-                } catch (err) {
-                    console.error('Error in extracting sheets:', err);
-                    throw err; // Stop further execution if any command fails
-                }
-        }        
-        // console.log('Executing PowerShell script to extract sheets:', command);
-      
+                + `-rooms "${room}" -labs "${lab}" `
+                + `-newRoomFilePath "${newRoomFilePath}" `
+                + `-newLabFilePath "${newLabFilePath}" `
+                + `-newTeacherFilePath "${newTeacherFilePath}"`;
+
+            try {
+                await executeCommand(command, socket, `Step ${i + 2}: Extracting sheets for room ${room} and lab ${lab}`);
+            } catch (err) {
+                console.error('Error in extracting sheets:', err);
+                throw err; // Stop further execution if any command fails
+            }
+        }
+
         resolve({ newRoomFilePath, newLabFilePath, newTeacherFilePath });
     });
 };
 
 export const uploadExcel = async (req, res) => {
     console.log('Entering uploadExcel function...');  // Debug print
+    const socket = req.app.get('socket');  // Assuming socket instance is stored in the app object
 
     try {
-        const file = req.file; // File uploaded via middleware
-        const { classrooms, labs } = req.body; // Extract the user inputs from the body
+        const file = req.file;  // File uploaded via middleware
+        const { classrooms, labs } = req.body;  // Extract the user inputs from the body
         const userInputLab = labs;
         const userInputLecture = classrooms;
 
         if (!file) {
-            console.error('No file uploaded'); // Debug print
+            console.error('No file uploaded');  // Debug print
+            socket.emit('processing-status', 'No file uploaded');
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
         if (!file.originalname.endsWith('.xlsm')) {
-            console.error('Uploaded file is not an .xlsm file'); // Debug print
+            console.error('Uploaded file is not an .xlsm file');  // Debug print
+            socket.emit('processing-status', 'Uploaded file is not an .xlsm file');
             return res.status(400).json({ error: 'Uploaded file must be an .xlsm file containing macros' });
         }
 
         const tempFilePath = path.join(__dirname, '../uploads', file.filename).slice(1);
-        const macroName = 'RunAllModules'; // The macro name to be executed
+        const macroName = 'RunAllModules';  // The macro name to be executed
 
         console.log('Temp file path:', tempFilePath);  // Debug print
         console.log('Running macro:', macroName);  // Debug print
 
+        // Emit progress: Running the macro
+        socket.emit('processing-status', 'Step 1: Running the macro...');
+
         // Pass the lab and lecture inputs to PowerShell when running the macro
-        await executeExcelMacro(tempFilePath, macroName, userInputLab, userInputLecture);
+        await executeExcelMacro(tempFilePath, macroName, userInputLab, userInputLecture, socket);
         console.log('Macro executed successfully');  // Debug print
 
+        // Emit progress: Extracting sheets
+        socket.emit('processing-status', 'Step 2: Extracting sheets...');
+
         // Run the extractSheets PowerShell script to create the three .xlsx files
-        const { newRoomFilePath, newLabFilePath, newTeacherFilePath } = await extractSheets(tempFilePath, classrooms, labs);
+        const { newRoomFilePath, newLabFilePath, newTeacherFilePath } = await extractSheets(tempFilePath, classrooms, labs, socket);
         console.log("After resolving promise");
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
 
-        // Check that the files exist before streaming them
-        if (fs.existsSync(newRoomFilePath)) {
-            console.log("Room file exists:", newRoomFilePath);
-        } else {
-            console.log("Room file does NOT exist:", newRoomFilePath);
-        }
+        // Emit progress: Creating zip file
+        socket.emit('processing-status', 'Step 3: Creating ZIP file...');
 
-        if (fs.existsSync(newLabFilePath)) {
-            console.log("Lab file exists:", newLabFilePath);
-        } else {
-            console.log("Lab file does NOT exist:", newLabFilePath);
-        }
+        // Create the zip file
+        const zip = new AdmZip();
+        await zip.addLocalFile(newRoomFilePath, 'room.xlsx');
+        await zip.addLocalFile(newLabFilePath, 'lab.xlsx');
+        await zip.addLocalFile(newTeacherFilePath, 'teachers.xlsx');
 
-        if (fs.existsSync(newTeacherFilePath)) {
-            console.log("Teacher file exists:", newTeacherFilePath);
-        } else {
-            console.log("Teacher file does NOT exist:", newTeacherFilePath);
-        }
+        fs.unlink(tempFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
+        });
 
-        // Create file streams for the three files
-        const roomStream = fs.createReadStream(newRoomFilePath); // 64 KB buffer size
-        const labStream = fs.createReadStream(newLabFilePath);
-        const teacherStream = fs.createReadStream(newTeacherFilePath);
-
-        console.log('Created file streams for room, lab, and teachers .xlsx');  // Debug print
-
-        // Set the appropriate headers for file download
-        res.setHeader('Content-Type', 'application/zip'); // We'll send a zip of all three files
-        res.setHeader('Content-Disposition', 'attachment; filename="extracted_files.zip"');  // Zip download
-
-        const zip = new AdmZip(); // Using archiver to zip the files
-        const addFileToZipWithDelay = (filePath, name, delay) => {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    if (fs.existsSync(filePath)) {
-                        zip.addLocalFile(filePath, undefined, name);
-                        console.log(`Added ${name} to zip.`);
-                    } else {
-                        console.error(`${name} does NOT exist at ${filePath}`);
-                    }
-                    resolve();
-                }, delay);
-            });
-        };
-
-        // Add files one by one with a 2-second delay
-        await addFileToZipWithDelay(newRoomFilePath, 'room.xlsx', 0);
-        await addFileToZipWithDelay(newLabFilePath, 'lab.xlsx', 2000); // 2-second delay
-        await addFileToZipWithDelay(newTeacherFilePath, 'teachers.xlsx', 4000); // Another 2-second delay
-
-        // Generate zip and send it in response
         const zipBuffer = zip.toBuffer();
-        res.setHeader('Content-Disposition', 'attachment; filename=extracted_files.zip');
+
+        // Emit progress: Sending zip file
+        socket.emit('processing-status', 'Step 4: Sending zip file to client...');
+
         res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', 'attachment; filename=extracted_files.zip');
         res.send(zipBuffer);
 
         console.log('Zip file sent successfully.');
     } catch (err) {
         console.error('Error processing file:', err);  // Debug print
+        socket.emit('processing-status', `Error processing file: ${err.message}`);
         res.status(500).json({ error: 'An error occurred while processing the file', details: err.message });
     }
 };
