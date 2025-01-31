@@ -167,7 +167,7 @@ export const uploadExcel = async (req, res) => {
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
-
+        await executeWord(newRoomFilePath,outputWordFilePath);
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
             console.log("Room file exists:", newRoomFilePath);
@@ -191,13 +191,13 @@ export const uploadExcel = async (req, res) => {
         const roomStream = fs.createReadStream(newRoomFilePath); // 64 KB buffer size
         const labStream = fs.createReadStream(newLabFilePath);
         const teacherStream = fs.createReadStream(newTeacherFilePath);
-
+         
         console.log('Created file streams for room, lab, and teachers .xlsx');  // Debug print
 
         // Set the appropriate headers for file download
         res.setHeader('Content-Type', 'application/zip'); // We'll send a zip of all three files
         res.setHeader('Content-Disposition', 'attachment; filename="extracted_files.zip"');  // Zip download
-        await executeWord(tempFilePath,outputWordFilePath);
+        
         
         const zip = new AdmZip(); // Using archiver to zip the files
         const addFileToZipWithDelay = (filePath, name, delay) => {
