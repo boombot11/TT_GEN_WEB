@@ -1,51 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Excel File</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel File Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    input[type="file"], input[type="text"] {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    a {
+      margin-top: 20px;
+      display: block;
+      color: #007bff;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-    <h1>Upload Excel File</h1>
 
-    <!-- File Input -->
-    <input type="file" id="fileInput" accept=".xlsm" />
-    <button id="submitButton">Upload File</button>
+  <h1>Upload Excel File</h1>
 
-    <script>
-        // Function to handle form submission
-        document.getElementById("submitButton").addEventListener("click", function () {
-            const fileInput = document.getElementById("fileInput");
+  <form id="uploadForm">
+    <input type="file" id="fileInput" name="file" required accept=".xlsm">
+    <input type="text" id="classrooms" name="classrooms" placeholder="Enter Classrooms (e.g., A101)" required>
+    <input type="text" id="labs" name="labs" placeholder="Enter Labs (e.g., Lab 1)" required>
+    <button type="submit">Upload Excel</button>
+  </form>
 
-            // Check if a file has been selected
-            if (!fileInput.files[0]) {
-                alert("Please select a file to upload.");
-                return;
-            }
+  <a id="downloadLink" style="display: none;" href="#" download>Download Zip File</a>
 
-            // Create a FormData object and append the file
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
+  <script>
+    document.getElementById("uploadForm").addEventListener("submit", function(event) {
+      event.preventDefault();
 
-            // Request options
-            const requestOptions = {
-                method: "POST",
-                body: formData,
-                redirect: "follow"
-            };
+      const fileInput = document.getElementById("fileInput");
+      const classrooms = document.getElementById("classrooms").value;
+      const labs = document.getElementById("labs").value;
 
-            // Send the request via fetch
-            fetch("http://localhost:5000/upload-excel", requestOptions)
-                .then(response => response.text())  // Assuming the response is plain text (or you can modify to handle a file)
-                .then(result => {
-                    console.log(result); // Print server response (you can replace with more handling)
-                    alert("File uploaded successfully!");
-                })
-                .catch((error) => {
-                    console.error("Error during upload:", error);
-                    alert("An error occurred while uploading the file.");
-                });
-        });
-    </script>
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      formData.append("classrooms", classrooms);
+      formData.append("labs", labs);
+
+      // Send POST request to upload the file
+      fetch("http://localhost:5000/upload-excel", {
+        method: "POST",
+        body: formData,
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to upload file');
+        }
+        return response.blob(); // Get the zip file from the response
+      })
+      .then(blob => {
+        // Create a URL for the blob and set it as the href of the download link
+        const downloadLink = document.getElementById("downloadLink");
+        const downloadUrl = URL.createObjectURL(blob);
+        downloadLink.href = downloadUrl;
+        downloadLink.style.display = "block"; // Show the download link
+      })
+      .catch(error => {
+        console.error("Error:", error);
+      });
+    });
+  </script>
+
 </body>
 </html>

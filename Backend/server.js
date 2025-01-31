@@ -11,6 +11,10 @@ app.use(cors({ origin: '*' }));
 // Routes
 // app.use("/auth", authRoutes);
 // Routes
+const PORT = process.env.PORT || 5000; // Use the environment variable for PORT or fallback to 5000
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 app.use((req, res, next) => {
     res.setTimeout(10 * 60 * 1000, () => { // 10 minutes timeout
         console.log('Request timed out.');

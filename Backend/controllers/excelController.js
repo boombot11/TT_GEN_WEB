@@ -42,6 +42,39 @@ const executeCommand = (command) => {
 };
 
 
+const executeWord = (tempFilePath, outputWordFilePath) => {
+    return new Promise((resolve, reject) => {
+        console.log("Entering word function");
+
+        const imageAbove = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Header.png"; // Update path
+        const imageBelow = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Footer.png"; // Update path
+
+        // Path to the PowerShell script
+        const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
+
+        // Construct the PowerShell command
+        const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${tempFilePath}" -outputWordFilePath "${outputWordFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
+
+        console.log('Executing PowerShell script...');
+
+        // Execute the PowerShell command
+        exec(psCommand, (err, stdout, stderr) => {
+            if (err) {
+                console.error('PowerShell script execution error:', err); // Debug print
+                reject(new Error(`Execution failed: ${err.message}`)); // Reject the promise on error
+            } else if (stderr) {
+                console.error('PowerShell script stderr:', stderr); // Debug print
+                reject(new Error(`PowerShell script error: ${stderr}`)); // Reject the promise on stderr
+            } else {
+                console.log('PowerShell script executed successfully:', stdout);  // Debug print
+                resolve(stdout); // Resolve the promise when exec finishes successfully
+            }
+        });
+    });
+};
+
+
+
 const extractSheets = (filePath, rooms, labs) => {
     return new Promise (async(resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'ExtractSheets.ps1').slice(1);
@@ -116,9 +149,10 @@ export const uploadExcel = async (req, res) => {
             console.error('Uploaded file is not an .xlsm file'); // Debug print
             return res.status(400).json({ error: 'Uploaded file must be an .xlsm file containing macros' });
         }
-
+     const outputWordFilePath = path.join(__dirname, '../uploads', 'outputDocument.docx').slice(1);
+            console.log(outputWordFilePath)
         const tempFilePath = path.join(__dirname, '../uploads', file.filename).slice(1);
-        const macroName = 'RunAllModules'; // The macro name to be executed
+        const macroName = 'RunAllWeb'; // The macro name to be executed
 
         console.log('Temp file path:', tempFilePath);  // Debug print
         console.log('Running macro:', macroName);  // Debug print
@@ -163,7 +197,8 @@ export const uploadExcel = async (req, res) => {
         // Set the appropriate headers for file download
         res.setHeader('Content-Type', 'application/zip'); // We'll send a zip of all three files
         res.setHeader('Content-Disposition', 'attachment; filename="extracted_files.zip"');  // Zip download
-
+        await executeWord(tempFilePath,outputWordFilePath);
+        
         const zip = new AdmZip(); // Using archiver to zip the files
         const addFileToZipWithDelay = (filePath, name, delay) => {
             return new Promise((resolve) => {
@@ -183,7 +218,7 @@ export const uploadExcel = async (req, res) => {
         await addFileToZipWithDelay(newRoomFilePath, 'room.xlsx', 0);
         await addFileToZipWithDelay(newLabFilePath, 'lab.xlsx', 2000); // 2-second delay
         await addFileToZipWithDelay(newTeacherFilePath, 'teachers.xlsx', 4000); // Another 2-second delay
-
+        await addFileToZipWithDelay(outputWordFilePath, 'outputDocument.docx', 6000);
         // Generate zip and send it in response
         const zipBuffer = zip.toBuffer();
         res.setHeader('Content-Disposition', 'attachment; filename=extracted_files.zip');

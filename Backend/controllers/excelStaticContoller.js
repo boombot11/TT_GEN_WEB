@@ -21,6 +21,40 @@ const executeStaticExcelMacro = (filePath, macroName, callback) => {
     });
 };
 
+
+
+const executeCommand = (tempFilePath, outputWordFilePath) => {
+    return new Promise((resolve, reject) => {
+        console.log("Entering word function");
+
+        const imageAbove = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Header.png"; // Update path
+        const imageBelow = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Footer.png"; // Update path
+
+        // Path to the PowerShell script
+        const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
+
+        // Construct the PowerShell command
+        const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${tempFilePath}" -outputWordFilePath "${outputWordFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
+
+        console.log('Executing PowerShell script...');
+
+        // Execute the PowerShell command
+        exec(psCommand, (err, stdout, stderr) => {
+            if (err) {
+                console.error('PowerShell script execution error:', err); // Debug print
+                reject(new Error(`Execution failed: ${err.message}`)); // Reject the promise on error
+            } else if (stderr) {
+                console.error('PowerShell script stderr:', stderr); // Debug print
+                reject(new Error(`PowerShell script error: ${stderr}`)); // Reject the promise on stderr
+            } else {
+                console.log('PowerShell script executed successfully:', stdout);  // Debug print
+                resolve(stdout); // Resolve the promise when exec finishes successfully
+            }
+        });
+    });
+};
+
+
 // Controller to handle file upload and processing
 const uploadExcelStatic = async (req, res) => {
     console.log('Entering uploadExcel function...');  // Debug print
@@ -42,40 +76,42 @@ const uploadExcelStatic = async (req, res) => {
         console.log('Running macro:', macroName);  // Debug print
 
         // Run the macro using winax
-        executeStaticExcelMacro(tempFilePath, macroName, (err, result) => {
+        executeStaticExcelMacro(tempFilePath, macroName, async (err, result) => {
             if (err) {
                 console.error('Macro execution error:', err); // Debug print
                 return res.status(500).json({ error: 'Failed to execute macro', details: err.message });
             }
             console.log('Macro executed successfully:', result);  // Debug print
-
+            const outputWordFilePath = path.join(__dirname, '../uploads', 'outputDocument.docx').slice(1);
+            console.log(outputWordFilePath)
+           await executeCommand(tempFilePath,outputWordFilePath);
             // Create a readable stream from the modified Excel file
-            const fileStream = fs.createReadStream(tempFilePath);
+            const fileStream = fs.createReadStream(outputWordFilePath);
             console.log('Created file stream');  // Debug print
 
             // Set the appropriate headers for file download
-            res.setHeader('Content-Disposition', `attachment; filename="${file.originalname}"`);
-            res.setHeader('Content-Type', 'application/vnd.ms-excel.sheet.macroenabled.12'); // MIME type for .xlsm files
+            res.setHeader('Content-Disposition', `attachment; filename=document.docx`);
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.documen'); // MIME type for .xlsm files
             console.log('Headers set for file download');  // Debug print
-
+            console.log(outputWordFilePath)
             // Pipe the file stream to the response
             fileStream.pipe(res);
             console.log('File streaming started');  // Debug print
-
+            
             // Handle cleanup once the file download is complete
             fileStream.on('end', () => {
                 console.log('File streaming completed. Cleaning up...');  // Debug print
-                fs.unlink(tempFilePath, (unlinkErr) => {
-                    if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
-                });
+                // fs.unlink(outputWordFilePath, (unlinkErr) => {
+                //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
+                // });
             });
 
             // Handle potential errors during streaming
             fileStream.on('error', (downloadErr) => {
                 console.error('Error sending file:', downloadErr);  // Debug print
-                fs.unlink(tempFilePath, (unlinkErr) => {
-                    if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
-                });
+                // fs.unlink(tempFilePath, (unlinkErr) => {
+                //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
+                // });
                 return res.status(500).json({ error: 'Failed to send file', details: downloadErr.message });
             });
         });
