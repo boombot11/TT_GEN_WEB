@@ -83,10 +83,23 @@ foreach ($sheet in $workbook.Sheets) {
     # (Make sure the range in Excel matches what you need)
     $excelSheet = $sheet
     $rangeExcel = $excelSheet.Range("A8:I30")
+if ($rangeExcel.Cells.Count -eq 0) {
+    Write-Host "Error: The selected range is empty."
+    return
+}
+
+
+# Try to copy the range as a picture
+try {
     $rangeExcel.CopyPicture(
         [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
         [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
     )
+} catch {
+    Write-Host "Error: Failed to copy range as picture. $_"
+    return
+}
+
     $textBox.TextFrame.TextRange.Paste()
 
     # Remove text box border
