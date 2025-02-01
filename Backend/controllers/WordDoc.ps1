@@ -46,8 +46,8 @@ foreach ($sheet in $workbook.Sheets) {
         $true,     # SaveWithDocument
         0,         # Left (0 means use the anchor’s position)
         0,         # Top (0 means use the anchor’s position)
-        18.88 * 28.35,  # Width in points
-        3 * 28.35,      # Height in points
+        26.7 * 28.35,  # Width in points for landscape (adjusted)
+        4 * 28.35,      # Height in points (adjusted)
         $range    # Anchor
     )
     $imageAbove.WrapFormat.Type = 3  # wdWrapFront
@@ -66,7 +66,7 @@ foreach ($sheet in $workbook.Sheets) {
     $textBox = $wordDoc.Shapes.AddTextbox(
         1,          # Orientation (msoTextOrientationHorizontal)
         0, 0,       # Left, Top (we’ll position later)
-        500, 230,   # Width, Height in points
+        780, 270,   # Width, Height in points (adjusted for landscape)
         $range      # Anchor
     )
     # Center the text box horizontally
@@ -83,32 +83,41 @@ foreach ($sheet in $workbook.Sheets) {
     # (Make sure the range in Excel matches what you need)
     $excelSheet = $sheet
     $rangeExcel = $excelSheet.Range("A8:I30")
-if ($rangeExcel.Cells.Count -eq 0) {
-    Write-Host "Error: The selected range is empty."
-    return
-}
+    if ($rangeExcel.Cells.Count -eq 0) {
+        Write-Host "Error: The selected range is empty."
+        return
+    }
 
-
-# Try to copy the range as a picture
-try {
-    $rangeExcel.CopyPicture(
-        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
-        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
-    )
-} catch {
-    Write-Host "Error: Failed to copy range as picture. $_"
-    return
-}
+    # Try to copy the range as a picture
+    try {
+        # $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeRight).LineStyle = 1
+        # $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeBottom).LineStyle = 1
+        $rangeExcel.CopyPicture(
+            [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
+            [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
+        )
+    } catch {
+        Write-Host "Error: Failed to copy range as picture. $_"
+        return
+    }
 
     $textBox.TextFrame.TextRange.Paste()
 
-    # Remove text box border
-    $textBox.Line.Visible = $false
-# ---------------------------
-# Apply X Offset of 0.7 cm (0.7 * 28.35 points)
-# ---------------------------
-$offsetX = 0.7 * 28.35
-$textBox.Left = $textBox.Left + $offsetX
+# $imageInTextBox = $textBox.Shapes.Item(1)
+
+# # Resize the image by adjusting its Width and Height properties
+# $newWidth = $imageInTextBox.Width * 1.5  # Increase the width by 1.5 times
+# $imageInTextBox.Width = $newWidth
+
+# # Optional: Adjust the height to maintain aspect ratio, if needed
+# $imageInTextBox.Height = $imageInTextBox.Height * 1
+
+# Remove the border of the text box
+$textBox.Line.Visible = $false
+    # ---------------------------
+    $offsetX = 2 * 28.35
+    $textBox.Left = $textBox.Left + $offsetX
+
     # ---------------------------
     # Insert additional paragraphs to create space after the text box
     # ---------------------------
@@ -126,8 +135,8 @@ $textBox.Left = $textBox.Left + $offsetX
         $false, 
         $true, 
         0, 0, 
-        18.88 * 28.35, 
-        3 * 28.35, 
+        26.7 * 28.35,  # Width in points for landscape (adjusted)
+        4 * 28.35,      # Height in points (adjusted)
         $range
     )
     $imageBelow.WrapFormat.Type = 3  # wdWrapFront
@@ -136,7 +145,7 @@ $textBox.Left = $textBox.Left + $offsetX
     $imageBelow.Top = $textBox.Top + $textBox.Height + 10
 
     # (Optional) Adjust page setup on this page if needed:
-    $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientPortrait
+    $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientLandscape
     $wordDoc.PageSetup.TopMargin = 5
     $wordDoc.PageSetup.BottomMargin = 5
     $wordDoc.PageSetup.LeftMargin = 5
