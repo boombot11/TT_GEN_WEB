@@ -5,106 +5,131 @@ param (
     [string]$outputWordFilePath
 )
 
+# Create Word and Excel application objects
 $wordApp = New-Object -ComObject Word.Application
-$wordApp.Visible = $false  # Hide Word application (set to $true to show)
+$wordApp.Visible = $false
 $wordDoc = $wordApp.Documents.Add()
 
-# Open Excel file and get the workbook object
 $excelApp = New-Object -ComObject Excel.Application
-$excelApp.Visible = $false  # Hide Excel application (set to $true to show)
-$excelApp.DisplayAlerts = $false  # Disable Excel pop-ups and alerts
-
+$excelApp.Visible = $false
+$excelApp.DisplayAlerts = $false
 $workbook = $excelApp.Workbooks.Open($ExcelFilePath)
+
 # Loop over each sheet in the Excel workbook
-$WordDoc.Content.InsertParagraphAfter()
-
 foreach ($sheet in $workbook.Sheets) {
-    # Start with a fresh page in Word
-    $wordDoc.Content.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
-    $WordDoc.Content.InsertParagraphAfter()
 
-    # Add the first image (Image Above) as a floating shape
-    $imageAbove = $wordDoc.Shapes.AddPicture($ImageAbovePath)
+    # Get a Range representing the end of the document
+    $range = $wordDoc.Content
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    
+   # Insert a page break if this is not the first page
+    if ($wordDoc.Content.Paragraphs.Count -gt 1) {
+        $range.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
+        $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    } else {
+        # First page case: Ensure there's a proper paragraph to anchor the image
+        $range.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
+        $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    }
+    
+    # Insert a paragraph marker (this paragraph will act as the anchor for subsequent shapes)
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    
+    # ---------------------------
+    # Add the first image (Image Above)
+    # ---------------------------
+    # Use the current range as the anchor
+    $imageAbove = $wordDoc.Shapes.AddPicture(
+        $ImageAbovePath, 
+        $false,    # LinkToFile
+        $true,     # SaveWithDocument
+        0,         # Left (0 means use the anchor’s position)
+        0,         # Top (0 means use the anchor’s position)
+        18.88 * 28.35,  # Width in points
+        3 * 28.35,      # Height in points
+        $range    # Anchor
+    )
+    $imageAbove.WrapFormat.Type = 3  # wdWrapFront
+    $imageAbove.LockAnchor = $true
 
-    # Set the height and width of the image in cm (1 cm = 28.35 points)
-    $imageAbove.Height = 3 * 28.35  
-    $imageAbove.Width = 18.88 * 28.35  
+    # Insert some extra paragraphs to create a gap
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
 
-    # Set text wrapping for the image (wrap in front of the text)
-    $imageAbove.WrapFormat.Type = 3  # 3 corresponds to wdWrapFront
-    $imageAbove.LockAnchor = $true  # Fix the position relative to the text
-
-    # Insert an artificial gap by adding blank paragraphs (or you can manually adjust spacing here)
-    $wordDoc.Content.InsertParagraphAfter()
-    $wordDoc.Content.InsertParagraphAfter()
-
-    # Create a text box to hold the Excel table
-    $textBox = $wordDoc.Shapes.AddTextbox(1, 0, 0, 500, 300)  # 1 for msoTextOrientationHorizontal
-
-    # Center the text box horizontally by setting the Left property
+    # ---------------------------
+    # Insert a TextBox for the Excel table
+    # ---------------------------
+    # Create the text box (again, anchor it to the current range)
+    $textBox = $wordDoc.Shapes.AddTextbox(
+        1,          # Orientation (msoTextOrientationHorizontal)
+        0, 0,       # Left, Top (we’ll position later)
+        500, 230,   # Width, Height in points
+        $range      # Anchor
+    )
+    # Center the text box horizontally
     $pageWidth = $wordApp.ActiveDocument.PageSetup.PageWidth
-    $textBoxWidth = $textBox.Width
-    $textBox.Left = ($pageWidth - $textBoxWidth) / 2  # Center the text box on the page
+    $textBox.Left = ($pageWidth - $textBox.Width) / 2
+    $textBox.WrapFormat.Type = 0  # wdWrapNone
 
-    # Set the wrapping style to none for the text box to prevent it from wrapping around the text
-    $textBox.TextFrame.TextRange.ParagraphFormat.Alignment = 0  # Align text in the text box (optional)
-    $textBox.WrapFormat.Type = 0  # 0 corresponds to wdWrapNone (no text wrapping around the box)
+    # Optionally, adjust vertical position relative to the image:
+    $textBox.Top = $imageAbove.Top + $imageAbove.Height + 10
 
-    # Set a vertical offset for the text box to create space after the image
-    $textBox.Top = $imageAbove.Top + $imageAbove.Height + 10  # Add a small gap (10 points) between image and table
-
-    # Copy the table content from Excel (Range A8:I28)
-      $excelSheet = $sheet
-    $range = $excelSheet.Range("A8:H30")
-    $range.CopyPicture([Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture)
-
-
-    # Paste the content into the text box
+    # ---------------------------
+    # Copy the Excel table and paste into the text box
+    # ---------------------------
+    # (Make sure the range in Excel matches what you need)
+    $excelSheet = $sheet
+    $rangeExcel = $excelSheet.Range("A8:J30")
+    $rangeExcel.CopyPicture(
+        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
+        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
+    )
     $textBox.TextFrame.TextRange.Paste()
 
-    # Remove the border of the text box (set Line.Visible to false)
+    # Remove text box border
     $textBox.Line.Visible = $false
 
-    # Resize the pasted Excel table to fit within the text box
-    $pastedShape = $textBox.TextFrame.TextRange
-    $pastedShape.Select()  # Select the pasted content
+    # ---------------------------
+    # Insert additional paragraphs to create space after the text box
+    # ---------------------------
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
 
-    # Ensure maxWidth and maxHeight are defined correctly (non-zero values)
-    $maxWidth = 450  # Set the maximum width (you can adjust this)
-    $maxHeight = 250  # Set the maximum height (you can adjust this)
-    
-  
-    # Insert additional space after the text box (you can adjust this gap as needed)
-    $wordDoc.Content.InsertParagraphAfter()
-    $wordDoc.Content.InsertParagraphAfter()
+    # ---------------------------
+    # Add the second image (Image Below)
+    # ---------------------------
+    $imageBelow = $wordDoc.Shapes.AddPicture(
+        $ImageBelowPath, 
+        $false, 
+        $true, 
+        0, 0, 
+        18.88 * 28.35, 
+        3 * 28.35, 
+        $range
+    )
+    $imageBelow.WrapFormat.Type = 3  # wdWrapFront
+    $imageBelow.LockAnchor = $true
+    # Position the second image below the text box
+    $imageBelow.Top = $textBox.Top + $textBox.Height + 10
 
-    # Add the second image (Image Below) as a floating shape
-    $imageBelow = $wordDoc.Shapes.AddPicture($ImageBelowPath)
-
-    # Set the height and width of the image in cm (1 cm = 28.35 points)
-    $imageBelow.Height = 3 * 28.35
-    $imageBelow.Width = 18.88 * 28.35
-
-    # Set text wrapping for the image (wrap in front of the text)
-    $imageBelow.WrapFormat.Type = 3  # 3 corresponds to wdWrapFront
-    $imageBelow.LockAnchor = $true  # Fix the position relative to the text
-
-    # Set a vertical offset for the second image (after the text box)
-    $imageBelow.Top = [float]$textBox.Top + [float]$textBox.Height + 10  # Add a small gap (10 points) between table and second image
-
-    # Apply Page Setup to the whole document (not to text boxes or shapes)
+    # (Optional) Adjust page setup on this page if needed:
     $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientPortrait
     $wordDoc.PageSetup.TopMargin = 5
     $wordDoc.PageSetup.BottomMargin = 5
     $wordDoc.PageSetup.LeftMargin = 5
     $wordDoc.PageSetup.RightMargin = 5
-
-    # Save the current Word document after each iteration
-    $wordDoc.SaveAs([ref]$outputWordFilePath)
-    Start-Sleep -Seconds 2
 }
 
-# Close Word and Excel applications
+# Save and close documents
+$wordDoc.SaveAs([ref]$outputWordFilePath)
+Start-Sleep -Seconds 2
+
 $workbook.Close()
 $excelApp.Quit()
 $wordDoc.Close()
