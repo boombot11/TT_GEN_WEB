@@ -82,7 +82,7 @@ foreach ($sheet in $workbook.Sheets) {
     # ---------------------------
     # (Make sure the range in Excel matches what you need)
     $excelSheet = $sheet
-    $rangeExcel = $excelSheet.Range("A8:J30")
+    $rangeExcel = $excelSheet.Range("A8:I30")
     $rangeExcel.CopyPicture(
         [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
         [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
@@ -91,7 +91,11 @@ foreach ($sheet in $workbook.Sheets) {
 
     # Remove text box border
     $textBox.Line.Visible = $false
-
+# ---------------------------
+# Apply X Offset of 0.7 cm (0.7 * 28.35 points)
+# ---------------------------
+$offsetX = 0.7 * 28.35
+$textBox.Left = $textBox.Left + $offsetX
     # ---------------------------
     # Insert additional paragraphs to create space after the text box
     # ---------------------------

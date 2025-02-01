@@ -167,7 +167,7 @@ export const uploadExcel = async (req, res) => {
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
-        await executeWord(newRoomFilePath,outputWordFilePath);
+        await executeWord(tempFilePath,outputWordFilePath);
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
             console.log("Room file exists:", newRoomFilePath);
