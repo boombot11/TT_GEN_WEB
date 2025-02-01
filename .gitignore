@@ -1,0 +1,5 @@
+/backend/node_modules/
+/python/myenv/Scripts
+/python/myenv/Lib
+/python/myenv/Include
+/python/myenv/pyvenv.cfg
