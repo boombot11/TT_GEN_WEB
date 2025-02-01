@@ -98,7 +98,7 @@ foreach ($sheet in $workbook.Sheets) {
         )
     } catch {
         Write-Host "Error: Failed to copy range as picture. $_"
-        return
+   
     }
 
     $textBox.TextFrame.TextRange.Paste()
