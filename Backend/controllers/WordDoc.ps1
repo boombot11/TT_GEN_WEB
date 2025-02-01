@@ -54,9 +54,10 @@ foreach ($sheet in $workbook.Sheets) {
     $textBox.Top = $imageAbove.Top + $imageAbove.Height + 10  # Add a small gap (10 points) between image and table
 
     # Copy the table content from Excel (Range A8:I28)
-    $excelSheet = $sheet
-    $range = $excelSheet.Range("A8:I28")
-    $range.Copy()
+      $excelSheet = $sheet
+    $range = $excelSheet.Range("A8:H30")
+    $range.CopyPicture([Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture)
+
 
     # Paste the content into the text box
     $textBox.TextFrame.TextRange.Paste()
@@ -72,22 +73,7 @@ foreach ($sheet in $workbook.Sheets) {
     $maxWidth = 450  # Set the maximum width (you can adjust this)
     $maxHeight = 250  # Set the maximum height (you can adjust this)
     
-    if ($maxWidth -gt 0 -and $maxHeight -gt 0) {
-        $table = $pastedShape.Tables.Item(0)  # Get the first table (assumed to be the Excel table)
-        Write-Host $table
-        # Ensure the table has valid dimensions
-        if ($table.Width -gt 0 -and $table.Height -gt 0) {
-            $scaleFactor = [math]::Min($maxWidth / $table.Width, $maxHeight / $table.Height)
-            $table.Rows.HeightRule = [Microsoft.Office.Interop.Word.WdRowHeightRule]::wdRowHeightExactly
-            $table.Rows.Height = $table.Rows.Height * $scaleFactor
-            $table.Columns.Width = $table.Columns.Width * $scaleFactor
-        } else {
-            Write-Host "Table width or height is zero, skipping resizing."
-        }
-    } else {
-        Write-Host "Invalid maxWidth or maxHeight, skipping resizing."
-    }
-
+  
     # Insert additional space after the text box (you can adjust this gap as needed)
     $wordDoc.Content.InsertParagraphAfter()
     $wordDoc.Content.InsertParagraphAfter()
@@ -104,7 +90,7 @@ foreach ($sheet in $workbook.Sheets) {
     $imageBelow.LockAnchor = $true  # Fix the position relative to the text
 
     # Set a vertical offset for the second image (after the text box)
-    $imageBelow.Top = $textBox.Top + $textBox.Height + 10  # Add a small gap (10 points) between table and second image
+    $imageBelow.Top = [float]$textBox.Top + [float]$textBox.Height + 10  # Add a small gap (10 points) between table and second image
 
     # Apply Page Setup to the whole document (not to text boxes or shapes)
     $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientPortrait
