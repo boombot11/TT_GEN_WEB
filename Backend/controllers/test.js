@@ -6,12 +6,14 @@ const executeWord = (tempFilePath, outputWordFilePath) => {
     return new Promise((resolve, reject) => {
         console.log("Entering word function");
 
-        const imageAbove = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Header.png"; // Update path
-        const imageBelow = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Footer.png"; // Update path
-
+        // const imageAbove = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Header.png"; // Update path
+        // const imageBelow = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Footer.png"; // Update path
+       const imageAbove=path.join(__dirname, 'Header.png').slice(1);
+       const imageBelow=path.join(__dirname, 'Footer.png').slice(1);
         // Path to the PowerShell script
         const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
-
+        console.log(imageAbove)
+        console.log(imageBelow)
         // Construct the PowerShell command
         const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${tempFilePath}" -outputWordFilePath "${outputWordFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
 

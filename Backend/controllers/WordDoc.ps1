@@ -2,101 +2,130 @@ param (
     [string]$ExcelFilePath,
     [string]$ImageAbovePath,
     [string]$ImageBelowPath,
-    [string]$outputWordFilePath  # Corrected variable name to match the parameter
+    [string]$outputWordFilePath
 )
 
-# Ensure necessary libraries are loaded
-$Excel = New-Object -ComObject Excel.Application
-$Excel.Visible = $false  # Initially hide Excel, but will show during copy
-$Word = New-Object -ComObject Word.Application
-$Word.Visible = $true
-$Excel.DisplayAlerts = $false
-$Word.DisplayAlerts = [Microsoft.Office.Interop.Word.WdAlertLevel]::wdAlertsNone
-$Word.Visible = $false 
-$Excel.Visible = $false
+$wordApp = New-Object -ComObject Word.Application
+$wordApp.Visible = $false  # Hide Word application (set to $true to show)
+$wordDoc = $wordApp.Documents.Add()
 
-# Open the Excel file
-$ExcelWorkbook = $Excel.Workbooks.Open($ExcelFilePath)
+# Open Excel file and get the workbook object
+$excelApp = New-Object -ComObject Excel.Application
+$excelApp.Visible = $false  # Hide Excel application (set to $true to show)
+$excelApp.DisplayAlerts = $false  # Disable Excel pop-ups and alerts
 
-# Create a new Word document
-$WordDoc = $Word.Documents.Add()
+$workbook = $excelApp.Workbooks.Open($ExcelFilePath)
+# Loop over each sheet in the Excel workbook
+$WordDoc.Content.InsertParagraphAfter()
 
-# Add hardcoded text at the start of the document
-$WordDoc.Content.InsertAfter("TESTTTTTTTTTTTTTTTTING EDITING")
-$WordDoc.Content.InsertParagraphAfter()  # Ensure there's a paragraph break after the inserted text
-# $WordDoc.Content.PasteAndFormat([Microsoft.Office.Interop.Word.WdRecoveryType]::wdFormatOriginalFormatting)
+foreach ($sheet in $workbook.Sheets) {
+    # Start with a fresh page in Word
+    $wordDoc.Content.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
+    $WordDoc.Content.InsertParagraphAfter()
 
-# Loop through all sheets in the Excel file
-foreach ($Sheet in $ExcelWorkbook.Sheets) {
-    Write-Host "Processing sheet: $($Sheet.Name)"
+    # Add the first image (Image Above) as a floating shape
+    $imageAbove = $wordDoc.Shapes.AddPicture($ImageAbovePath)
+
+    # Set the height and width of the image in cm (1 cm = 28.35 points)
+    $imageAbove.Height = 3 * 28.35  
+    $imageAbove.Width = 18.88 * 28.35  
+
+    # Set text wrapping for the image (wrap in front of the text)
+    $imageAbove.WrapFormat.Type = 3  # 3 corresponds to wdWrapFront
+    $imageAbove.LockAnchor = $true  # Fix the position relative to the text
+
+    # Insert an artificial gap by adding blank paragraphs (or you can manually adjust spacing here)
+    $wordDoc.Content.InsertParagraphAfter()
+    $wordDoc.Content.InsertParagraphAfter()
+
+    # Create a text box to hold the Excel table
+    $textBox = $wordDoc.Shapes.AddTextbox(1, 0, 0, 500, 300)  # 1 for msoTextOrientationHorizontal
+
+    # Center the text box horizontally by setting the Left property
+    $pageWidth = $wordApp.ActiveDocument.PageSetup.PageWidth
+    $textBoxWidth = $textBox.Width
+    $textBox.Left = ($pageWidth - $textBoxWidth) / 2  # Center the text box on the page
+
+    # Set the wrapping style to none for the text box to prevent it from wrapping around the text
+    $textBox.TextFrame.TextRange.ParagraphFormat.Alignment = 0  # Align text in the text box (optional)
+    $textBox.WrapFormat.Type = 0  # 0 corresponds to wdWrapNone (no text wrapping around the box)
+
+    # Set a vertical offset for the text box to create space after the image
+    $textBox.Top = $imageAbove.Top + $imageAbove.Height + 10  # Add a small gap (10 points) between image and table
+
+    # Copy the table content from Excel (Range A8:I28)
+    $excelSheet = $sheet
+    $range = $excelSheet.Range("A8:I28")
+    $range.Copy()
+
+    # Paste the content into the text box
+    $textBox.TextFrame.TextRange.Paste()
+
+    # Remove the border of the text box (set Line.Visible to false)
+    $textBox.Line.Visible = $false
+
+    # Resize the pasted Excel table to fit within the text box
+    $pastedShape = $textBox.TextFrame.TextRange
+    $pastedShape.Select()  # Select the pasted content
+
+    # Ensure maxWidth and maxHeight are defined correctly (non-zero values)
+    $maxWidth = 450  # Set the maximum width (you can adjust this)
+    $maxHeight = 250  # Set the maximum height (you can adjust this)
     
-    # # Add a page break before starting with the new sheet data (to ensure it starts on a new page)
-    # $WordDoc.Content.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
-
-    # Add the image above the page content (before the sheet data)
-    # Write-Host "Inserting image above..."
-    # $WordDoc.InlineShapes.AddPicture($ImageAbovePath)
-    # $WordDoc.Content.InsertParagraphAfter()  # Move to next line after the image
-
-    # Hardcoded range - Change the range as needed (e.g., "A1:G20")
-    $ExcelRange = $Sheet.Range("A8:H29")  # Specify the range here
-
-    Write-Host "Copying range from sheet: $($Sheet.Name)..."
-    $rangeText = $ExcelRange.Value2  # This will give you a textual representation of the data
-    Write-Host "Data from Excel: $($rangeText)"
-
-    # Check if the Excel range has data
-    if ($ExcelRange.Cells.Count -eq 0) {
-        Write-Host "Excel range is empty. Skipping sheet: $($Sheet.Name)"
+    if ($maxWidth -gt 0 -and $maxHeight -gt 0) {
+        $table = $pastedShape.Tables.Item(0)  # Get the first table (assumed to be the Excel table)
+        Write-Host $table
+        # Ensure the table has valid dimensions
+        if ($table.Width -gt 0 -and $table.Height -gt 0) {
+            $scaleFactor = [math]::Min($maxWidth / $table.Width, $maxHeight / $table.Height)
+            $table.Rows.HeightRule = [Microsoft.Office.Interop.Word.WdRowHeightRule]::wdRowHeightExactly
+            $table.Rows.Height = $table.Rows.Height * $scaleFactor
+            $table.Columns.Width = $table.Columns.Width * $scaleFactor
+        } else {
+            Write-Host "Table width or height is zero, skipping resizing."
+        }
     } else {
-        Write-Host "Excel range contains data. Copying and pasting into Word..."
-
-         $Excel.Visible = $true  # Hide Excel after copying
-        # Directly copy the range data from Excel (no need to select)
-        $ExcelRange.Copy()
-
-        # Small delay to ensure the clipboard is updated
-        Start-Sleep -Seconds 3  # Increased delay to ensure content is copied
-
-        # Paste it into Word (as a table)
-        $WordDoc.Content.Paste()
-        Write-Host "Pasted content from sheet: $($Sheet.Name)"
-        
-        # Hide Excel again after copying
-        $Excel.Visible = $false  # Hide Excel after copying
+        Write-Host "Invalid maxWidth or maxHeight, skipping resizing."
     }
 
-    # # Insert a paragraph break after pasting the content
-    # $WordDoc.Content.InsertParagraphAfter()
+    # Insert additional space after the text box (you can adjust this gap as needed)
+    $wordDoc.Content.InsertParagraphAfter()
+    $wordDoc.Content.InsertParagraphAfter()
 
-    # # Add the image below the content (after the sheet data)
-    # Write-Host "Inserting image below..."
-    # # $WordDoc.InlineShapes.AddPicture($ImageBelowPath)
-    # # $WordDoc.Content.InsertParagraphAfter()  # Move to the next line after the image
+    # Add the second image (Image Below) as a floating shape
+    $imageBelow = $wordDoc.Shapes.AddPicture($ImageBelowPath)
 
-    # # Optional: Add another page break after each sheet if desired
-    # $WordDoc.Content.InsertBreak([Microsoft.Office.Interop.Word.WdBreakType]::wdPageBreak)
+    # Set the height and width of the image in cm (1 cm = 28.35 points)
+    $imageBelow.Height = 3 * 28.35
+    $imageBelow.Width = 18.88 * 28.35
+
+    # Set text wrapping for the image (wrap in front of the text)
+    $imageBelow.WrapFormat.Type = 3  # 3 corresponds to wdWrapFront
+    $imageBelow.LockAnchor = $true  # Fix the position relative to the text
+
+    # Set a vertical offset for the second image (after the text box)
+    $imageBelow.Top = $textBox.Top + $textBox.Height + 10  # Add a small gap (10 points) between table and second image
+
+    # Apply Page Setup to the whole document (not to text boxes or shapes)
+    $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientPortrait
+    $wordDoc.PageSetup.TopMargin = 5
+    $wordDoc.PageSetup.BottomMargin = 5
+    $wordDoc.PageSetup.LeftMargin = 5
+    $wordDoc.PageSetup.RightMargin = 5
+
+    # Save the current Word document after each iteration
+    $wordDoc.SaveAs([ref]$outputWordFilePath)
+    Start-Sleep -Seconds 2
 }
 
-# Save the Word document using the provided output path
-Write-Host "Saving the Word document..."
-$WordDoc.SaveAs([ref] $outputWordFilePath)
-Start-Sleep -Seconds 2 
-# Close the Word document
-$WordDoc.Close($true)
+# Close Word and Excel applications
+$workbook.Close()
+$excelApp.Quit()
+$wordDoc.Close()
+$wordApp.Quit()
 
-Start-Sleep -Seconds 3  # Adjust the sleep time if needed
-
-# Close Excel and Word
-$ExcelWorkbook.Close()
-
-# Quit the Word application
-$Word.Quit()
-
-Start-Sleep -Seconds 2  # Adjust the sleep time if needed
-
-# Clean up COM objects to prevent memory leaks
-[System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel)
-[System.Runtime.Interopservices.Marshal]::ReleaseComObject($Word)
-
-Write-Host "COM objects released and Word document saved successfully."
+# Release COM objects
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($wordApp) | Out-Null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excelApp) | Out-Null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($wordDoc) | Out-Null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbook) | Out-Null
