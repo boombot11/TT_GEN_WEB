@@ -17,26 +17,36 @@ const executeExcelMacro = (filePath, macroName, userInputLab, userInputLecture) 
         const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}"`;
 
         console.log('Executing PowerShell script:', command);  // Debug print
-        exec(command, (err, stdout, stderr) => {
+        const child = exec(command, { timeout:  300000 }, (err, stdout, stderr) => { // Timeout set to 60s
             if (err) {
-                console.error('Error executing PowerShell script:', stderr);
+                console.error('❌ PowerShell script failed:', stderr);
                 return reject(err);
             }
-            console.log('PowerShell script executed successfully:', stdout); // Debug print
+            console.log('✅ PowerShell script executed successfully:', stdout);
             resolve(stdout.trim());
+        });
+
+        child.on('error', (error) => {
+            console.error("❌ PowerShell process error:", error);
+            reject(error);
         });
     });
 };
 
 const executeCommand = (command) => {
     return new Promise((resolve, reject) => {
-        exec(command, (err, stdout, stderr) => {
+        const child = exec(command, { timeout:  300000 }, (err, stdout, stderr) => { // Timeout set to 60s
             if (err) {
-                console.error('Error executing PowerShell extractSheets script:', stderr);
+                console.error('❌ PowerShell script failed:', stderr);
                 return reject(err);
             }
-            console.log('Sheets extracted successfully:', stdout);
-            resolve(stdout);
+            console.log('✅ PowerShell script executed successfully:', stdout);
+            resolve(stdout.trim());
+        });
+
+        child.on('error', (error) => {
+            console.error("❌ PowerShell process error:", error);
+            reject(error);
         });
     });
 };
@@ -46,8 +56,8 @@ const executeWord = (tempFilePath, outputWordFilePath) => {
     return new Promise((resolve, reject) => {
         console.log("Entering word function");
 
-        const imageAbove = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Header.png"; // Update path
-        const imageBelow = "C:\\Users\\Sahil\\Documents\\TT_GEN_WEB\\Backend\\controllers\\Footer.png"; // Update path
+        const imageAbove = path.join(__dirname, 'Header.png').slice(1);// Update path
+        const imageBelow = path.join(__dirname, 'Footer.png').slice(1);// Update path
 
         // Path to the PowerShell script
         const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
@@ -58,17 +68,18 @@ const executeWord = (tempFilePath, outputWordFilePath) => {
         console.log('Executing PowerShell script...');
 
         // Execute the PowerShell command
-        exec(psCommand, (err, stdout, stderr) => {
+        const child = exec(psCommand, { timeout:  300000 }, (err, stdout, stderr) => { // Timeout set to 60s
             if (err) {
-                console.error('PowerShell script execution error:', err); // Debug print
-                reject(new Error(`Execution failed: ${err.message}`)); // Reject the promise on error
-            } else if (stderr) {
-                console.error('PowerShell script stderr:', stderr); // Debug print
-                reject(new Error(`PowerShell script error: ${stderr}`)); // Reject the promise on stderr
-            } else {
-                console.log('PowerShell script executed successfully:', stdout);  // Debug print
-                resolve(stdout); // Resolve the promise when exec finishes successfully
+                console.error('❌ PowerShell script failed:', stderr);
+                return reject(err);
             }
+            console.log('✅ PowerShell script executed successfully:', stdout);
+            resolve(stdout.trim());
+        });
+
+        child.on('error', (error) => {
+            console.error("❌ PowerShell process error:", error);
+            reject(error);
         });
     });
 };
@@ -188,9 +199,7 @@ export const uploadExcel = async (req, res) => {
         }
 
         // Create file streams for the three files
-        const roomStream = fs.createReadStream(newRoomFilePath); // 64 KB buffer size
-        const labStream = fs.createReadStream(newLabFilePath);
-        const teacherStream = fs.createReadStream(newTeacherFilePath);
+  
          
         console.log('Created file streams for room, lab, and teachers .xlsx');  // Debug print
 
@@ -226,8 +235,43 @@ export const uploadExcel = async (req, res) => {
         res.send(zipBuffer);
 
         console.log('Zip file sent successfully.');
+        fs.unlink(tempFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
+        });
+        fs.unlink(outputWordFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
+        });
+        const files = ['room.xlsx', 'teacher.xlsx', 'lab.xlsx'];
+         replaceFiles(files);
     } catch (err) {
         console.error('Error processing file:', err);  // Debug print
         res.status(500).json({ error: 'An error occurred while processing the file', details: err.message });
     }
 };
+
+
+
+// Function to delete and replace files
+function replaceFiles(files) {
+  files.forEach(file => {
+    const dirA = process.env.DIR_A || path.join(__dirname, 'gen').slice(1); // Default to 'gen' folder in current directory
+    const dirB = process.env.DIR_B || path.join(__dirname, '..', 'routes').slice(1); 
+    // Delete file in Directory A if it exists
+    const fileInA = path.join(dirA, file);
+    const fileInB = path.join(dirB, file);
+    if (fs.existsSync(fileInA)) {
+      fs.unlinkSync(fileInA);
+      console.log(`Deleted: ${fileInA}`);
+    } else {
+      console.log(`File not found in A: ${fileInA}`);
+    }
+
+    // Replace with file from Directory B if it exists
+    if (fs.existsSync(fileInB)) {
+      fs.copyFileSync(fileInB, fileInA);
+      console.log(`Replaced: ${fileInA}`);
+    } else {
+      console.log(`File not found in B: ${fileInB}`);
+    }
+  });
+}

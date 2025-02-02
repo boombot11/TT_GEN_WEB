@@ -29,5 +29,5 @@ app.use((req, res, next) => {
 });
 
 app.use(router);
-
+// npx electron-rebuild 
 export default app;
