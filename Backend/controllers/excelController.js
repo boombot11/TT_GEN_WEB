@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { exec } from 'child_process';
-import archiver from 'archiver';
+
 import AdmZip from 'adm-zip';
 
 // Get the directory name for ES Modules
@@ -241,7 +241,7 @@ export const uploadExcel = async (req, res) => {
         fs.unlink(outputWordFilePath, (unlinkErr) => {
             if (unlinkErr) console.error('Failed to delete file:', unlinkErr);  // Debug print
         });
-        const files = ['room.xlsx', 'teacher.xlsx', 'lab.xlsx'];
+        const files = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
          replaceFiles(files);
     } catch (err) {
         console.error('Error processing file:', err);  // Debug print

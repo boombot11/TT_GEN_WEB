@@ -2,16 +2,15 @@
   "name": "tt-gen",
   "type": "module",
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron .",
-    "debug": "electron --inspect=5858 ."
+    "start": "node server.js"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "electron": "^34.0.2",
@@ -19,8 +18,7 @@
     "fs": "^0.0.1-security",
     "mammoth": "^1.9.0",
     "multer": "^1.4.5-lts.1",
-    "nodemon": "^3.1.9",
-    "winax": "^3.6.1"
+    "nodemon": "^3.1.9"
   },
   "devDependencies": {
     "electron-rebuild": "^3.2.9"

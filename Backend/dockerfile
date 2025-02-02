@@ -1,0 +1,20 @@
+# Use Node.js 20.x image
+FROM node:20
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json (if it exists)
+COPY package*.json ./
+
+# Install dependencies (both regular and dev dependencies)
+RUN npm install
+
+# Copy the rest of the application code
+COPY . .
+
+# Expose the port your app will run on (default to 5000)
+EXPOSE 5000
+
+# Set the CMD to start your app using the start script
+CMD ["npm", "start"]

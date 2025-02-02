@@ -3,10 +3,10 @@ import cors from "cors";
 import router from "./routes/authRoutes.js";
 
 // Ensure it’s running on Windows before starting the server
-if (process.platform !== 'win32') {
-    console.log('This application is only supported on Windows.');
-    process.exit(1); // Exit the app if not on Windows
-}
+// if (process.platform !== 'win32') {
+//     console.log('This application is only supported on Windows.');
+//     process.exit(1); // Exit the app if not on Windows
+// }
 
 const app = express();
 
