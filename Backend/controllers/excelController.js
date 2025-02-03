@@ -9,14 +9,14 @@ import e from 'express';
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
 
 
-const executeExcelMacro = (filePath,addOnEvents, macroName, userInputLab, userInputLecture,Track,map) => {
+const executeExcelMacro = (filePath,macroName, userInputLab, userInputLecture,Track,map) => {
     return new Promise((resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'runDynamicMacro.ps1').slice(1);
         console.log("Dynamic input lab: " + userInputLab);
         console.log("Dynamic input lecture: " + userInputLecture);
      
         // Construct the PowerShell command with all necessary arguments
-        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}"`;
+        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" `;
 
         console.log('Executing PowerShell script:', command);  // Debug print
         const child = exec(command, { timeout:  3000000 }, (err, stdout, stderr) => { // Timeout set to 60s
@@ -142,18 +142,52 @@ const extractSheets = (filePath, rooms, labs) => {
     });
 };
 
+const executeAddOn = (filePath, AddOnEvents, macroName, userInputLab, userInputLecture, Track, map) => {
+    return new Promise((resolve, reject) => {
+        const psScriptPath = path.join(__dirname, 'addOn.ps1').slice(1);
+
+        // Convert AddOnEvents to a simple string representation of the array
+        // For each addOn, we extract the values (day, sheetName, content, time) and join them with a comma.
+        const addOnsParam = AddOnEvents.map(addOn => 
+            `${addOn.day},${addOn.sheetName},${addOn.content},${addOn.time}`
+        ).join(';'); // Join the individual add-ons with a semicolon
+
+        // Construct the PowerShell command with all necessary arguments
+        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" "${addOnsParam}"`;
+
+        console.log('Executing PowerShell script:', command);
+        const child = exec(command, { timeout:  3000000 }, (err, stdout, stderr) => { 
+            if (err) {
+                console.error('❌ PowerShell script failed:', stderr);
+                return reject(err);
+            }
+            console.log('✅ PowerShell script executed successfully:', stdout);
+            resolve(stdout.trim());
+        });
+
+        child.on('error', (error) => {
+            console.error("❌ PowerShell process error:", error);
+            reject(error);
+        });
+    });
+};
+
+
 export const uploadExcel = async (req, res) => {
     console.log('Entering uploadExcel function...');
 
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
         const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
-        const { classrooms, labs, addOns } = req.body; // Extract the user inputs and add-ons from the body
+        const { classrooms, labs } = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
+        const addOns = JSON.parse(req.body.addOns);  // If addOns is a string, parse it into an array
+
         const userInputLab = labs;
         const userInputLecture = classrooms;
-        
+        console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        console.log(addOns)
         var imageAbove = null;
         var imageBelow = null;
 
@@ -200,28 +234,34 @@ export const uploadExcel = async (req, res) => {
 
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
-        const AddOnEvents=[]
-        // Handling Add-Ons: process each add-on
-        if (addOns && Array.isArray(addOns) && addOns.length > 0) {
+        const AddOnEvents = [];
+        await executeExcelMacro(tempFilePath,macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
+      
+        console.log('Macro executed successfully');
+        console.log(addOns)
+        console.log('Processing firstttttttttttttt add-ons...');
+        if (addOns ) {
             console.log('Processing add-ons...');
             addOns.forEach((addOn, index) => {
-                const { content, time, sheetName, day } = addOn;
-                console.log(`Add-On ${index + 1}: Content: ${content}, Time: ${time}, Sheet Name: ${sheetName}, Day: ${day}`);
-               AddOnEvents.push({content:content,time:time,sheetName:sheetName,day:day});
+                const {day, sheetName, content, time} = addOn;
+                console.log(`Add-On ${index + 1}: Day: ${day}, Sheet Name: ${sheetName}, Content: ${content}, Time: ${time}`);
+                AddOnEvents.push({ day, sheetName, content, time });
             });
+            await executeAddOn(tempFilePath, AddOnEvents, macroName);
         }
-        const addOnEventsJson = JSON.stringify(AddOnEvents);
-        // Pass the dynamic Track and map data to PowerShell when running the macro
-        await executeExcelMacro(tempFilePath,addOnEventsJson, macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
-        console.log('Macro executed successfully');
+        console.log(AddOnEvents)
 
+        // Other code remains the same (checking file, config, etc.)
+
+        // Pass the addOnEvents array to the macro execution function
+      
         // Run the extractSheets PowerShell script to create the three .xlsx files
         const { newRoomFilePath, newLabFilePath, newTeacherFilePath } = await extractSheets(tempFilePath, classrooms, labs);
         console.log("After resolving promise");
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
-
+    
         // Execute Word-related operations
         await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
 
@@ -245,7 +285,7 @@ export const uploadExcel = async (req, res) => {
         }
 
         console.log('Created file streams for room, lab, and teachers .xlsx');
-
+          
 
         // Set the appropriate headers for file download
         res.setHeader('Content-Type', 'application/zip'); // We'll send a zip of all three files
@@ -281,9 +321,9 @@ export const uploadExcel = async (req, res) => {
         console.log('Zip file sent successfully.');
 
         // Clean up temporary files
-        fs.unlink(tempFilePath, (unlinkErr) => {
-            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        });
+        // fs.unlink(tempFilePath, (unlinkErr) => {
+        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        // });
         fs.unlink(outputWordFilePath, (unlinkErr) => {
             if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
         });
