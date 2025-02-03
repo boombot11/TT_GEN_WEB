@@ -1,0 +1,30 @@
+# Use the official Windows Server Core image with Node.js installed
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install Node.js (version 20.x)
+# Download the Node.js installer and run it
+RUN powershell -Command \
+    Invoke-WebRequest -Uri https://nodejs.org/dist/v20.0.0/node-v20.0.0-x64.msi -OutFile nodejs.msi; \
+    Start-Process msiexec.exe -ArgumentList '/i', 'nodejs.msi', '/quiet', '/norestart' -NoNewWindow -Wait; \
+    Remove-Item -Force nodejs.msi
+
+# Set the environment variable for Node.js
+ENV PATH="C:\\Program Files\\nodejs\\;$PATH"
+
+# Copy package.json and package-lock.json (if it exists)
+COPY package*.json ./
+
+# Install dependencies (both regular and dev dependencies)
+RUN npm install
+
+# Copy the rest of the application code
+COPY . .
+
+# Expose the port your app will run on (default to 5000)
+EXPOSE 5000
+
+# Set the CMD to start your app using the start script
+CMD ["npm", "start"]

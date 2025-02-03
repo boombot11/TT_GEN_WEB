@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import winax from 'winax'; // Import the winax module
 import { exec } from 'child_process';
 
 // Get the directory name for ES Modules
