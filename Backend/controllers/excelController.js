@@ -3,6 +3,7 @@ import fs from 'fs';
 import { exec } from 'child_process';
 
 import AdmZip from 'adm-zip';
+import e from 'express';
 
 // Get the directory name for ES Modules
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
@@ -53,12 +54,10 @@ const executeCommand = (command) => {
 };
 
 
-const executeWord = (tempFilePath, outputWordFilePath) => {
+const executeWord = (tempFilePath, outputWordFilePath,imageAbove,imageBelow) => {
     return new Promise((resolve, reject) => {
         console.log("Entering word function");
 
-        const imageAbove = path.join(__dirname, 'Header.png').slice(1);// Update path
-        const imageBelow = path.join(__dirname, 'Footer.png').slice(1);// Update path
 
         // Path to the PowerShell script
         const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
@@ -151,10 +150,24 @@ export const uploadExcel = async (req, res) => {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
         const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
         const { classrooms, labs } = req.body; // Extract the user inputs from the body
-
+        const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
+        const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
         const userInputLab = labs;
         const userInputLecture = classrooms;
-
+        var imageAbove = null;
+        var imageBelow = null;
+        if(!headerFile ){
+             imageAbove = path.join(__dirname, 'Header.png').slice(1);// Update path
+            
+        }else{
+            imageAbove = path.join(__dirname, '../uploads', headerFile.filename).slice(1); // Path to the uploaded HEADER image
+        }
+        if(!footerFile){
+             imageBelow = path.join(__dirname, 'Footer.png').slice(1);// Update path
+        }
+        else{
+            imageBelow = path.join(__dirname, '../uploads', footerFile.filename).slice(1); // Path to the uploaded FOOTER image
+        }
         if (!file) {
             console.error('No file uploaded');
             return res.status(400).json({ error: 'No .xlsm file uploaded' });
@@ -200,7 +213,7 @@ export const uploadExcel = async (req, res) => {
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
 
-        await executeWord(tempFilePath, outputWordFilePath);
+        await executeWord(tempFilePath, outputWordFilePath,imageAbove,imageBelow);
 
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
@@ -256,12 +269,12 @@ export const uploadExcel = async (req, res) => {
         console.log('Zip file sent successfully.');
 
         // Clean up temporary files
-        // fs.unlink(tempFilePath, (unlinkErr) => {
-        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        // });
-        // fs.unlink(outputWordFilePath, (unlinkErr) => {
-        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        // });
+        fs.unlink(tempFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        });
+        fs.unlink(outputWordFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        });
 
         const files = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
         replaceFiles(files);
