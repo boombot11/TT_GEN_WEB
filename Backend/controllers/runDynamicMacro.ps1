@@ -5,7 +5,9 @@ param (
     [string]$userInputLecture,
     [string]$track,  # Track is passed as a JSON string
     [Parameter(Mandatory=$true)]
-    [string]$map     # Map is passed as a JSON string
+    [string]$map,    # Map is passed as a JSON string
+    [Parameter(Mandatory=$true)]
+    [string]$addOnEventsJson  # AddOnEvents passed as a JSON string
 )
 
 # Create an instance of Excel
@@ -13,20 +15,24 @@ $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $true
 
-$trackDictionary = Invoke-Expression "New-Object -ComObject Scripting.Dictionary; $track"
-$mapDictionary = Invoke-Expression "New-Object -ComObject Scripting.Dictionary; $map"
+
+# Deserialize AddOnEvents JSON
+$addOnEvents = $addOnEventsJson | ConvertFrom-Json
 
 # Debugging
 Write-Host "INPUTS ::"
 Write-Host $track
 Write-Host $map
+Write-Host "AddOnEvents:"
+$addOnEvents | ForEach-Object { Write-Host "Content: $($_.content), Time: $($_.time), SheetName: $($_.sheetName), Day: $($_.day)" }
+
 $workbook = $excel.Workbooks.Open($filePath)
 Write-Host "IN DYNAMIC MACRO OPENED WORKBOOK"
 
 # Run the macro with the modified parameters
 try {
-    # Run the macro with user inputs, the converted Dictionaries
-    $excel.Run($macroName, $userInputLab, $userInputLecture, $track,$map)
+    # Run the macro with user inputs, the converted Dictionaries, and the AddOnEvents
+    $excel.Run($macroName, $userInputLab, $userInputLecture, $track, $map, $addOnEvents)
 } catch {
     Write-Host "Error running macro: $_"
 }

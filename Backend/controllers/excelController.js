@@ -9,7 +9,7 @@ import e from 'express';
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
 
 
-const executeExcelMacro = (filePath, macroName, userInputLab, userInputLecture,Track,map) => {
+const executeExcelMacro = (filePath,addOnEvents, macroName, userInputLab, userInputLecture,Track,map) => {
     return new Promise((resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'runDynamicMacro.ps1').slice(1);
         console.log("Dynamic input lab: " + userInputLab);
@@ -142,32 +142,33 @@ const extractSheets = (filePath, rooms, labs) => {
     });
 };
 
-
 export const uploadExcel = async (req, res) => {
     console.log('Entering uploadExcel function...');
 
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
         const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
-        const { classrooms, labs } = req.body; // Extract the user inputs from the body
+        const { classrooms, labs, addOns } = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
         const userInputLab = labs;
         const userInputLecture = classrooms;
+        
         var imageAbove = null;
         var imageBelow = null;
+
+        // Handle header and footer image files
         if(!headerFile ){
-             imageAbove = path.join(__dirname, 'Header.png').slice(1);// Update path
-            
-        }else{
-            imageAbove = path.join(__dirname, '../uploads', headerFile.filename).slice(1); // Path to the uploaded HEADER image
+            imageAbove = path.join(__dirname, 'Header.png').slice(1);
+        } else {
+            imageAbove = path.join(__dirname, '../uploads', headerFile.filename).slice(1);
         }
         if(!footerFile){
-             imageBelow = path.join(__dirname, 'Footer.png').slice(1);// Update path
+            imageBelow = path.join(__dirname, 'Footer.png').slice(1);
+        } else {
+            imageBelow = path.join(__dirname, '../uploads', footerFile.filename).slice(1);
         }
-        else{
-            imageBelow = path.join(__dirname, '../uploads', footerFile.filename).slice(1); // Path to the uploaded FOOTER image
-        }
+
         if (!file) {
             console.error('No file uploaded');
             return res.status(400).json({ error: 'No .xlsm file uploaded' });
@@ -187,13 +188,11 @@ export const uploadExcel = async (req, res) => {
         const configData = JSON.parse(fs.readFileSync(configFile.path, 'utf-8'));
 
         // Create Track dynamically based on config data (for flexibility)
-            // Convert Track keys into a space-separated string
-            const TrackKeys = Object.keys(configData).join(" ");
-             
-            // Convert map values into a comma-separated string
-            const mapValues = Object.values(configData).join(", ");
-             console.log(TrackKeys)
-             console.log(mapValues)
+        const TrackKeys = Object.keys(configData).join(" ");
+        const mapValues = Object.values(configData).join(", ");
+        console.log(TrackKeys);
+        console.log(mapValues);
+
         // Prepare paths and variables
         const outputWordFilePath = path.join(__dirname, '../uploads', 'outputDocument.docx').slice(1);
         const tempFilePath = path.join(__dirname, '../uploads', file.filename).slice(1);
@@ -201,9 +200,19 @@ export const uploadExcel = async (req, res) => {
 
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
-
+        const AddOnEvents=[]
+        // Handling Add-Ons: process each add-on
+        if (addOns && Array.isArray(addOns) && addOns.length > 0) {
+            console.log('Processing add-ons...');
+            addOns.forEach((addOn, index) => {
+                const { content, time, sheetName, day } = addOn;
+                console.log(`Add-On ${index + 1}: Content: ${content}, Time: ${time}, Sheet Name: ${sheetName}, Day: ${day}`);
+               AddOnEvents.push({content:content,time:time,sheetName:sheetName,day:day});
+            });
+        }
+        const addOnEventsJson = JSON.stringify(AddOnEvents);
         // Pass the dynamic Track and map data to PowerShell when running the macro
-        await executeExcelMacro(tempFilePath, macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
+        await executeExcelMacro(tempFilePath,addOnEventsJson, macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
         console.log('Macro executed successfully');
 
         // Run the extractSheets PowerShell script to create the three .xlsx files
@@ -213,7 +222,8 @@ export const uploadExcel = async (req, res) => {
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
 
-        await executeWord(tempFilePath, outputWordFilePath,imageAbove,imageBelow);
+        // Execute Word-related operations
+        await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
 
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
@@ -236,12 +246,14 @@ export const uploadExcel = async (req, res) => {
 
         console.log('Created file streams for room, lab, and teachers .xlsx');
 
+
         // Set the appropriate headers for file download
         res.setHeader('Content-Type', 'application/zip'); // We'll send a zip of all three files
         res.setHeader('Content-Disposition', 'attachment; filename="extracted_files.zip"');  // Zip download
 
         const zip = new AdmZip(); // Using archiver to zip the files
 
+        // Add files to zip with delay to avoid race conditions
         const addFileToZipWithDelay = (filePath, name, delay) => {
             return new Promise((resolve) => {
                 setTimeout(() => {
