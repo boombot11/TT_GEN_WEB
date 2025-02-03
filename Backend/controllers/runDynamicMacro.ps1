@@ -2,22 +2,40 @@ param (
     [string]$filePath,
     [string]$macroName,
     [string]$userInputLab,
-    [string]$userInputLecture
+    [string]$userInputLecture,
+    [string]$track,  # Track is passed as a JSON string
+    [Parameter(Mandatory=$true)]
+    [string]$map     # Map is passed as a JSON string
 )
 
 # Create an instance of Excel
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
-$excel.DisplayAlerts = $false
+$excel.DisplayAlerts = $true
 
-# Open the workbook
+$trackDictionary = Invoke-Expression "New-Object -ComObject Scripting.Dictionary; $track"
+$mapDictionary = Invoke-Expression "New-Object -ComObject Scripting.Dictionary; $map"
+
+# Debugging
+Write-Host "INPUTS ::"
+Write-Host $track
+Write-Host $map
 $workbook = $excel.Workbooks.Open($filePath)
+Write-Host "IN DYNAMIC MACRO OPENED WORKBOOK"
 
-# Run the macro with the passed parameters
-$excel.Run($macroName, $userInputLab, $userInputLecture)
+# Run the macro with the modified parameters
+try {
+    # Run the macro with user inputs, the converted Dictionaries
+    $excel.Run($macroName, $userInputLab, $userInputLecture, $track,$map)
+} catch {
+    Write-Host "Error running macro: $_"
+}
 
-# Save the workbook after running the macro (in place)
+Write-Host "IN DYNAMIC MACRO RUN MACRO"
+
+# Save the workbook after running the macro
 $workbook.Save()
+Write-Host "IN DYNAMIC MACRO SAVED WORKBOOK"
 
 # Close the workbook and Excel
 $workbook.Close()

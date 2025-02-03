@@ -47,6 +47,7 @@
 
   <form id="uploadForm">
     <input type="file" id="fileInput" name="file" required accept=".xlsm">
+    <input type="file" id="configInput" name="config" required accept=".json">
     <input type="text" id="classrooms" name="classrooms" placeholder="Enter Classrooms (e.g., A101)" required>
     <input type="text" id="labs" name="labs" placeholder="Enter Labs (e.g., Lab 1)" required>
     <button type="submit">Upload Excel</button>
@@ -59,12 +60,14 @@
       event.preventDefault();
 
       const fileInput = document.getElementById("fileInput");
+      const configInput = document.getElementById("configInput");
       const classrooms = document.getElementById("classrooms").value;
       const labs = document.getElementById("labs").value;
 
       // Prepare form data
       const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
+      formData.append("file", fileInput.files[0]);  // Excel file
+      formData.append("config", configInput.files[0]);  // Config JSON file
       formData.append("classrooms", classrooms);
       formData.append("labs", labs);
 
