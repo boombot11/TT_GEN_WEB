@@ -1,176 +1,12 @@
 import path from 'path';
 import fs from 'fs';
-import { exec } from 'child_process';
-
 import AdmZip from 'adm-zip';
-import e from 'express';
+import {executeWord, executeExcelMacro, executeAddOns, extractSheets} from './excelFunctions.js';
 
 // Get the directory name for ES Modules
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
 
 
-const executeExcelMacro = (filePath,macroName, userInputLab, userInputLecture,Track,map) => {
-    return new Promise((resolve, reject) => {
-        const psScriptPath = path.join(__dirname, 'runDynamicMacro.ps1').slice(1);
-        console.log("Dynamic input lab: " + userInputLab);
-        console.log("Dynamic input lecture: " + userInputLecture);
-     
-        // Construct the PowerShell command with all necessary arguments
-        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" `;
-
-        console.log('Executing PowerShell script:', command);  // Debug print
-        const child = exec(command, { timeout:  3000000 }, (err, stdout, stderr) => { // Timeout set to 60s
-            if (err) {
-                console.error('❌ PowerShell script failed:', stderr);
-                return reject(err);
-            }
-            console.log('✅ PowerShell script executed successfully:', stdout);
-            resolve(stdout.trim());
-        });
-
-        child.on('error', (error) => {
-            console.error("❌ PowerShell process error:", error);
-            reject(error);
-        });
-    });
-};
-
-const executeCommand = (command) => {
-    return new Promise((resolve, reject) => {
-        const child = exec(command, { timeout:  300000 }, (err, stdout, stderr) => { // Timeout set to 60s
-            if (err) {
-                console.error('❌ PowerShell script failed:', stderr);
-                return reject(err);
-            }
-            console.log('✅ PowerShell script executed successfully:', stdout);
-            resolve(stdout.trim());
-        });
-
-        child.on('error', (error) => {
-            console.error("❌ PowerShell process error:", error);
-            reject(error);
-        });
-    });
-};
-
-
-const executeWord = (tempFilePath, outputWordFilePath,imageAbove,imageBelow) => {
-    return new Promise((resolve, reject) => {
-        console.log("Entering word function");
-
-
-        // Path to the PowerShell script
-        const psScriptPath = path.join(__dirname, 'WordDoc.ps1').slice(1);    
-
-        // Construct the PowerShell command
-        const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${tempFilePath}" -outputWordFilePath "${outputWordFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
-
-        console.log('Executing PowerShell script...');
-
-        // Execute the PowerShell command
-        const child = exec(psCommand, { timeout:  300000 }, (err, stdout, stderr) => { // Timeout set to 60s
-            if (err) {
-                console.error('❌ PowerShell script failed:', stderr);
-                return reject(err);
-            }
-            console.log('✅ PowerShell script executed successfully:', stdout);
-            resolve(stdout.trim());
-        });
-
-        child.on('error', (error) => {
-            console.error("❌ PowerShell process error:", error);
-            reject(error);
-        });
-    });
-};
-
-
-
-const extractSheets = (filePath, rooms, labs) => {
-    return new Promise (async(resolve, reject) => {
-        const psScriptPath = path.join(__dirname, 'ExtractSheets.ps1').slice(1);
-        const newRoomFilePath = path.join(__dirname, 'gen', 'room.xlsx').slice(1);
-        const newLabFilePath = path.join(__dirname, 'gen', 'lab.xlsx').slice(1);
-        const newTeacherFilePath = path.join(__dirname, 'gen', 'teachers.xlsx').slice(1);
-       const TeacherScript=path.join(__dirname, 'teachersExtract.ps1').slice(1)
-        console.log(`Room file path: ${newRoomFilePath}`);
-        console.log(`Lab file path: ${newLabFilePath}`);
-        console.log(`Teacher file path: ${newTeacherFilePath}`);
-        console.log('FilePath:', filePath); // Debug print
-        console.log("psScriptPath:", psScriptPath);
-        console.log(rooms);
-        console.log(labs)
-        if (typeof rooms === 'string') {
-            rooms = rooms.split(' '); // Split by space into an array
-        }
-        if (typeof labs === 'string') {
-            labs = labs.split(' '); // Split by space into an array
-        }
-        
-
-        for (let i = 0; i < Math.max(rooms.length, labs.length); i++) {
-           
-            const room = rooms[i] || null;  // If there's no room at this index, pass null
-            const lab = labs[i] || null;    // If there's no lab at this index, pass null
-            console.log(room, lab);
-            console.log(i);
-            // Construct the PowerShell command for each iteration
-            const teacher = `powershell -ExecutionPolicy ByPass -File "${TeacherScript}" -excelFilePath "${filePath}" `
-            + `-rooms "${room}" -labs "${lab}" `
-            + `-newRoomFilePath "${newRoomFilePath}" `
-            + `-newLabFilePath "${newLabFilePath}" `
-            + `-newTeacherFilePath "${newTeacherFilePath}"`;
-            if(i==0){
-                await executeCommand(teacher);
-                    }
-            const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" -excelFilePath "${filePath}" `
-            + `-rooms "${room}" -labs "${lab}" `
-            + `-newRoomFilePath "${newRoomFilePath}" `
-            + `-newLabFilePath "${newLabFilePath}" `
-            + `-newTeacherFilePath "${newTeacherFilePath}"`;
-                try {
-            
-                    await executeCommand(command);
-                } catch (err) {
-                    console.error('Error in extracting sheets:', err);
-                    throw err; // Stop further execution if any command fails
-                }
-        }        
-        // console.log('Executing PowerShell script to extract sheets:', command);
-      
-        resolve({ newRoomFilePath, newLabFilePath, newTeacherFilePath });
-    });
-};
-
-const executeAddOn = (filePath, AddOnEvents, macroName, userInputLab, userInputLecture, Track, map) => {
-    return new Promise((resolve, reject) => {
-        const psScriptPath = path.join(__dirname, 'addOn.ps1').slice(1);
-
-        // Convert AddOnEvents to a simple string representation of the array
-        // For each addOn, we extract the values (day, sheetName, content, time) and join them with a comma.
-        const addOnsParam = AddOnEvents.map(addOn => 
-            `${addOn.day},${addOn.sheetName},${addOn.content},${addOn.time}`
-        ).join(';'); // Join the individual add-ons with a semicolon
-
-        // Construct the PowerShell command with all necessary arguments
-        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" "${addOnsParam}"`;
-
-        console.log('Executing PowerShell script:', command);
-        const child = exec(command, { timeout:  3000000 }, (err, stdout, stderr) => { 
-            if (err) {
-                console.error('❌ PowerShell script failed:', stderr);
-                return reject(err);
-            }
-            console.log('✅ PowerShell script executed successfully:', stdout);
-            resolve(stdout.trim());
-        });
-
-        child.on('error', (error) => {
-            console.error("❌ PowerShell process error:", error);
-            reject(error);
-        });
-    });
-};
 
 
 export const uploadExcel = async (req, res) => {
@@ -266,7 +102,7 @@ export const uploadExcel = async (req, res) => {
                 console.log(`Add-On ${index + 1}: Day: ${day}, Sheet Name: ${sheetName}, Content: ${content}, Time: ${time}`);
                 AddOnEvents.push({ day, sheetName, content, time });
             });
-            await executeAddOn(tempFilePath, AddOnEvents, macroName);
+            await executeAddOns(tempFilePath, AddOnEvents, macroName);
         }
         console.log(AddOnEvents)
 

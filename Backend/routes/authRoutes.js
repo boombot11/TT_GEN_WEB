@@ -3,7 +3,7 @@ import express from "express";
 // import { verifyToken } from "../middleware/authMiddleware.js";
 import uploadMiddleware from "../middleware/uploadMiddleware.js";
 import { uploadExcel} from "../controllers/excelController.js";
-import uploadExcelStatic from "../controllers/excelStaticContoller.js";
+
 
 const router = express.Router();
 
@@ -16,7 +16,6 @@ const router = express.Router();
 //     user: req.user,
 //   });
 // });
-router.post('/upload/Static',uploadMiddleware,uploadExcelStatic)
 router.post('/upload-excel', uploadMiddleware, uploadExcel);
 
 export default router;
