@@ -15,9 +15,11 @@ export const uploadExcel = async (req, res) => {
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
         const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
-        const { classrooms, labs } = req.body; // Extract the user inputs and add-ons from the body
+        const { classrooms, labs,HeaderText } = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
+        const headerText = Array.isArray(HeaderText) ? HeaderText.join(', ') : HeaderText;  // Join array of header text or use as string
+
         var temp=null;
         try{
             temp = JSON.parse(req.body.addOns);
@@ -175,16 +177,16 @@ export const uploadExcel = async (req, res) => {
 
         console.log('Zip file sent successfully.');
 
-        // Clean up temporary files
-        fs.unlink(tempFilePath, (unlinkErr) => {
-            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        });
-        fs.unlink(configFile.path, (unlinkErr) => {
-            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        });
-        fs.unlink(outputWordFilePath, (unlinkErr) => {
-            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        });
+        // // Clean up temporary files
+        // fs.unlink(tempFilePath, (unlinkErr) => {
+        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        // });
+        // fs.unlink(configFile.path, (unlinkErr) => {
+        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        // });
+        // fs.unlink(outputWordFilePath, (unlinkErr) => {
+        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        // });
 
         const files = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
         replaceFiles(files);

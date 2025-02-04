@@ -130,26 +130,44 @@ $textBox.Line.Visible = $false
     # ---------------------------
     # Add the second image (Image Below)
     # ---------------------------
-    $imageBelow = $wordDoc.Shapes.AddPicture(
-        $ImageBelowPath, 
-        $false, 
-        $true, 
-        0, 0, 
-        26.7 * 28.35,  # Width in points for landscape (adjusted)
-        4 * 28.35,      # Height in points (adjusted)
-        $range
-    )
-    $imageBelow.WrapFormat.Type = 3  # wdWrapFront
-    $imageBelow.LockAnchor = $true
-    # Position the second image below the text box
-    $imageBelow.Top = $textBox.Top + $textBox.Height + 10
+$rangeExcel2 = $sheet.Range("A34:H39")
+if ($rangeExcel2.Cells.Count -eq 0) {
+    Write-Host "Error: The selected range is empty."
+    return
+}
 
-    # (Optional) Adjust page setup on this page if needed:
-    $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientLandscape
-    $wordDoc.PageSetup.TopMargin = 5
-    $wordDoc.PageSetup.BottomMargin = 5
-    $wordDoc.PageSetup.LeftMargin = 5
-    $wordDoc.PageSetup.RightMargin = 5
+# Try to copy the range as a picture
+try {
+    $rangeExcel2.CopyPicture(
+        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
+        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
+    )
+} catch {
+    Write-Host "Error: Failed to copy range as picture. $_"
+}
+
+# Create a new text box to hold the picture
+$textBox2 = $wordDoc.Shapes.AddTextbox(
+    1,          # Orientation (msoTextOrientationHorizontal)
+    0, 0,       # Left, Top (we’ll position later)
+    26.7 * 28.35,  # Width in points (same as ImageBelow)
+    4 * 28.35,      # Height in points (same as ImageBelow)
+    $range      # Anchor to the current range in Word
+)
+
+# Center the text box horizontally (same logic as before)
+$pageWidth = $wordApp.ActiveDocument.PageSetup.PageWidth
+$textBox2.Left = ($pageWidth - $textBox2.Width) / 2
+$textBox2.WrapFormat.Type = 0  # wdWrapNone
+
+# Position the second text box below the first one (imageAbove)
+$textBox2.Top = $textBox.Top + $textBox.Height + 10
+
+# Paste the Excel range as a picture into the text box
+$textBox2.TextFrame.TextRange.Paste()
+
+# Remove the border of the text box
+$textBox2.Line.Visible = $false
 }
 
 # Save and close documents
