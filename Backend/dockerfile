@@ -4,12 +4,11 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2019
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install Node.js (version 20.x)
-# Download the Node.js installer and run it
-RUN powershell -Command \
-    Invoke-WebRequest -Uri https://nodejs.org/dist/v20.0.0/node-v20.0.0-x64.msi -OutFile nodejs.msi; \
-    Start-Process msiexec.exe -ArgumentList '/i', 'nodejs.msi', '/quiet', '/norestart' -NoNewWindow -Wait; \
-    Remove-Item -Force nodejs.msi
+# Copy the Node.js installer into the container
+COPY node-v20.9.0-x64.msi ./
+
+# Install Node.js
+RUN msiexec.exe /i node-v20.9.0-x64.msi /quiet /norestart
 
 # Set the environment variable for Node.js
 ENV PATH="C:\\Program Files\\nodejs\\;$PATH"

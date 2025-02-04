@@ -182,8 +182,13 @@ export const uploadExcel = async (req, res) => {
         const { classrooms, labs } = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
-        const addOns = JSON.parse(req.body.addOns);  // If addOns is a string, parse it into an array
-
+        var temp=null;
+        try{
+            temp = JSON.parse(req.body.addOns);
+        }catch(e){
+            temp=null
+        }  // If addOns is a string, parse it into an array
+   const addOns=temp
         const userInputLab = labs;
         const userInputLecture = classrooms;
         console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -327,7 +332,7 @@ export const uploadExcel = async (req, res) => {
         await addFileToZipWithDelay(newLabFilePath, 'lab.xlsx', 2000); // 2-second delay
         await addFileToZipWithDelay(newTeacherFilePath, 'teachers.xlsx', 4000); // Another 2-second delay
         await addFileToZipWithDelay(outputWordFilePath, 'outputDocument.docx', 6000);
-
+        await addFileToZipWithDelay(tempFilePath, 'all_TimeTables.xlsm', 8000);  
         // Generate zip and send it in response
         const zipBuffer = zip.toBuffer();
         res.send(zipBuffer);
@@ -335,9 +340,12 @@ export const uploadExcel = async (req, res) => {
         console.log('Zip file sent successfully.');
 
         // Clean up temporary files
-        // fs.unlink(tempFilePath, (unlinkErr) => {
-        //     if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
-        // });
+        fs.unlink(tempFilePath, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        });
+        fs.unlink(configFile.path, (unlinkErr) => {
+            if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
+        });
         fs.unlink(outputWordFilePath, (unlinkErr) => {
             if (unlinkErr) console.error('Failed to delete file:', unlinkErr);
         });
