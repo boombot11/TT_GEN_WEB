@@ -190,7 +190,21 @@ export const uploadExcel = async (req, res) => {
         console.log(addOns)
         var imageAbove = null;
         var imageBelow = null;
-
+/*[
+  {
+    "day": "Monday",
+    "sheetName": "64", 
+    "content": "Some content related to Monday",
+    "time": "8:00-10:00" 
+  },
+  {
+    "day": "Tuesday",
+    "sheetName": "65", 
+    "content": "Some content related to Tuesday",
+    "time": "10:30-12:00" 
+  }
+]
+*/
         // Handle header and footer image files
         if(!headerFile ){
             imageAbove = path.join(__dirname, 'Header.png').slice(1);
