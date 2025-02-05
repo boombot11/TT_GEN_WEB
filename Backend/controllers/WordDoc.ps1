@@ -81,28 +81,36 @@ foreach ($sheet in $workbook.Sheets) {
     # Copy the Excel table and paste into the text box
     # ---------------------------
     # (Make sure the range in Excel matches what you need)
-    $excelSheet = $sheet
-    $rangeExcel = $excelSheet.Range("A8:I30")
-    if ($rangeExcel.Cells.Count -eq 0) {
-        Write-Host "Error: The selected range is empty."
-        return
-    }
+$excelSheet = $sheet
+$rangeExcel = $excelSheet.Range("A8:I30")
 
-    # Try to copy the range as a picture
-    try {
-        # $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeRight).LineStyle = 1
-        # $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeBottom).LineStyle = 1
-        $rangeExcel.CopyPicture(
-            [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
-            [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
-        )
-    } catch {
-        Write-Host "Error: Failed to copy range as picture. $_"
-   
-    }
+# Check if the range is empty
+if ($rangeExcel.Cells.Count -eq 0) {
+    Write-Host "Error: The selected range is empty."
+    return
+}
 
-    $textBox.TextFrame.TextRange.Paste()
+# Try to remove borders and copy the range as a picture
+try {
+    # Remove all borders from the range
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeBottom).LineStyle = -4142
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeRight).LineStyle = -4142
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeTop).LineStyle = -4142
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeLeft).LineStyle = -4142
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlInsideHorizontal).LineStyle = -4142
+    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlInsideVertical).LineStyle = -4142
 
+    # Now, copy the range as a picture (without borders)
+    $rangeExcel.CopyPicture(
+        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
+        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
+    )
+} catch {
+    Write-Host "Error: Failed to copy range as picture. $_"
+}
+
+# Paste the copied picture into the text box
+$textBox.TextFrame.TextRange.Paste()
 # $imageInTextBox = $textBox.Shapes.Item(1)
 
 # # Resize the image by adjusting its Width and Height properties
