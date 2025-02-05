@@ -112,7 +112,7 @@ try {
 # Paste the copied picture into the text box
 $textBox.TextFrame.TextRange.Paste()
 # $imageInTextBox = $textBox.Shapes.Item(1)
-
+cd
 # # Resize the image by adjusting its Width and Height properties
 # $newWidth = $imageInTextBox.Width * 1.5  # Increase the width by 1.5 times
 # $imageInTextBox.Width = $newWidth
@@ -121,7 +121,7 @@ $textBox.TextFrame.TextRange.Paste()
 # $imageInTextBox.Height = $imageInTextBox.Height * 1
 
 # Remove the border of the text box
-$textBox.Line.Visible = $false
+$textBox.Line.Visible = $true
     # ---------------------------
     $offsetX = 2 * 28.35
     $textBox.Left = $textBox.Left + $offsetX
@@ -138,7 +138,7 @@ $textBox.Line.Visible = $false
     # ---------------------------
     # Add the second image (Image Below)
     # ---------------------------
-$rangeExcel2 = $sheet.Range("A34:H39")
+$rangeExcel2 = $sheet.Range("A31:H35")
 if ($rangeExcel2.Cells.Count -eq 0) {
     Write-Host "Error: The selected range is empty."
     return
