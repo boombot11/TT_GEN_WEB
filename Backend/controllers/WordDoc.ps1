@@ -9,7 +9,7 @@ param (
 $wordApp = New-Object -ComObject Word.Application
 $wordApp.Visible = $false
 $wordDoc = $wordApp.Documents.Add()
-
+# $wordDoc.PageSetup.Orientation = [Microsoft.Office.Interop.Word.WdOrientation]::wdOrientLandscape
 $excelApp = New-Object -ComObject Excel.Application
 $excelApp.Visible = $false
 $excelApp.DisplayAlerts = $false
@@ -39,7 +39,6 @@ foreach ($sheet in $workbook.Sheets) {
     # ---------------------------
     # Add the first image (Image Above)
     # ---------------------------
-    # Use the current range as the anchor
     $imageAbove = $wordDoc.Shapes.AddPicture(
         $ImageAbovePath, 
         $false,    # LinkToFile
@@ -60,75 +59,66 @@ foreach ($sheet in $workbook.Sheets) {
     $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
 
     # ---------------------------
-    # Insert a TextBox for the Excel table
+    # Insert the Excel table as a Word table
     # ---------------------------
-    # Create the text box (again, anchor it to the current range)
-    $textBox = $wordDoc.Shapes.AddTextbox(
-        1,          # Orientation (msoTextOrientationHorizontal)
-        0, 0,       # Left, Top (we’ll position later)
-        780, 270,   # Width, Height in points (adjusted for landscape)
-        $range      # Anchor
-    )
-    # Center the text box horizontally
-    $pageWidth = $wordApp.ActiveDocument.PageSetup.PageWidth
-    $textBox.Left = ($pageWidth - $textBox.Width) / 2
-    $textBox.WrapFormat.Type = 0  # wdWrapNone
+    # Define the Excel range to be copied
+    
+    $excelSheet = $sheet
+    $rangeExcel = $excelSheet.Range("A8:I30")
 
-    # Optionally, adjust vertical position relative to the image:
-    $textBox.Top = $imageAbove.Top + $imageAbove.Height + 10
+    # Check if the range is empty
+    if ($rangeExcel.Cells.Count -eq 0) {
+        Write-Host "Error: The selected range is empty."
+        return
+    }
 
-    # ---------------------------
-    # Copy the Excel table and paste into the text box
-    # ---------------------------
-    # (Make sure the range in Excel matches what you need)
-$excelSheet = $sheet
-$rangeExcel = $excelSheet.Range("A8:I30")
+    # Copy the range as text
+    $rangeExcel.Copy()
 
-# Check if the range is empty
-if ($rangeExcel.Cells.Count -eq 0) {
-    Write-Host "Error: The selected range is empty."
-    return
+    # Insert the Excel data as a Word table (instead of inside a textbox)
+   # Insert the Excel data as a Word table
+$range = $wordDoc.Content
+$range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+
+# Paste the Excel range as a Word table
+$wordTable = $range.PasteSpecial([Microsoft.Office.Interop.Word.WdRecoveryType]::wdFormatRTF)
+
+# Adjust the width and height of the table
+$wordTable = $wordDoc.Tables.Item($wordDoc.Tables.Count)
+
+# Set the table width to a specific size (in points)
+$wordTable.PreferredWidthType = [Microsoft.Office.Interop.Word.WdPreferredWidthType]::wdPreferredWidthPoints
+$wordTable.PreferredWidth = 500  # Constrain table width to 500 points
+$wordTable.AutoFitBehavior([Microsoft.Office.Interop.Word.WdAutoFitBehavior]::wdAutoFitWindow)
+# Set fixed width for all columns (15 points per column)
+
+
+foreach ($row in $wordTable.Rows) {
+    foreach ($cell in $row.Cells) {
+        # Access the range of each cell directly
+        $cellRange = $cell.Range
+             # Log the current font size before changing
+        Write-Host "Before Change - Row: $($row.Index), Column: $($cell.ColumnIndex), Font Size: $($cellRange.Font.Size)"
+
+        # Set the font size for the cell's range
+        $cellRange.Font.Size = 14
+
+        # Log the font size after applying the change
+        Write-Host "After Change - Row: $($row.Index), Column: $($cell.ColumnIndex), Font Size: $($cellRange.Font.Size)"
+    }
 }
 
-# Try to remove borders and copy the range as a picture
-try {
-    # Remove all borders from the range
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeBottom).LineStyle = -4142
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeRight).LineStyle = -4142
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeTop).LineStyle = -4142
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlEdgeLeft).LineStyle = -4142
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlInsideHorizontal).LineStyle = -4142
-    $rangeExcel.Borders([Microsoft.Office.Interop.Excel.XlBordersIndex]::xlInsideVertical).LineStyle = -4142
-
-    # Now, copy the range as a picture (without borders)
-    $rangeExcel.CopyPicture(
-        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
-        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
-    )
-} catch {
-    Write-Host "Error: Failed to copy range as picture. $_"
+foreach ($column in $wordTable.Columns) {
+    $column.Width = 105
 }
 
-# Paste the copied picture into the text box
-$textBox.TextFrame.TextRange.Paste()
-# $imageInTextBox = $textBox.Shapes.Item(1)
-cd
-# # Resize the image by adjusting its Width and Height properties
-# $newWidth = $imageInTextBox.Width * 1.5  # Increase the width by 1.5 times
-# $imageInTextBox.Width = $newWidth
+# Set row height for each row
+foreach ($row in $wordTable.Rows) {
+    $row.HeightRule = [Microsoft.Office.Interop.Word.WdRowHeightRule]::wdRowHeightExactly
+    $row.Height = 16 # Adjust height for each row (in points)
+}
 
-# # Optional: Adjust the height to maintain aspect ratio, if needed
-# $imageInTextBox.Height = $imageInTextBox.Height * 1
-
-# Remove the border of the text box
-$textBox.Line.Visible = $true
-    # ---------------------------
-    $offsetX = 2 * 28.35
-    $textBox.Left = $textBox.Left + $offsetX
-
-    # ---------------------------
-    # Insert additional paragraphs to create space after the text box
-    # ---------------------------
+    # Insert additional paragraphs to create space after the table
     $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
     $range.InsertParagraphAfter()
     $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
@@ -138,44 +128,26 @@ $textBox.Line.Visible = $true
     # ---------------------------
     # Add the second image (Image Below)
     # ---------------------------
-$rangeExcel2 = $sheet.Range("A31:H35")
-if ($rangeExcel2.Cells.Count -eq 0) {
-    Write-Host "Error: The selected range is empty."
-    return
-}
-
-# Try to copy the range as a picture
-try {
-    $rangeExcel2.CopyPicture(
-        [Microsoft.Office.Interop.Excel.XlPictureAppearance]::xlScreen, 
-        [Microsoft.Office.Interop.Excel.XlCopyPictureFormat]::xlPicture
+  # ---------------------------
+    $imageAbove = $wordDoc.Shapes.AddPicture(
+        $ImageBelowPath, 
+        $false,    # LinkToFile
+        $true,     # SaveWithDocument
+        0,         # Left (0 means use the anchor’s position)
+        0,         # Top (0 means use the anchor’s position)
+        26.7 * 28.35,  # Width in points for landscape (adjusted)
+        4 * 28.35,      # Height in points (adjusted)
+        $range    # Anchor
     )
-} catch {
-    Write-Host "Error: Failed to copy range as picture. $_"
-}
+    $imageAbove.WrapFormat.Type = 3  # wdWrapFront
+    $imageAbove.LockAnchor = $true
 
-# Create a new text box to hold the picture
-$textBox2 = $wordDoc.Shapes.AddTextbox(
-    1,          # Orientation (msoTextOrientationHorizontal)
-    0, 0,       # Left, Top (we’ll position later)
-    26.7 * 28.35,  # Width in points (same as ImageBelow)
-    4 * 28.35,      # Height in points (same as ImageBelow)
-    $range      # Anchor to the current range in Word
-)
-
-# Center the text box horizontally (same logic as before)
-$pageWidth = $wordApp.ActiveDocument.PageSetup.PageWidth
-$textBox2.Left = ($pageWidth - $textBox2.Width) / 2
-$textBox2.WrapFormat.Type = 0  # wdWrapNone
-
-# Position the second text box below the first one (imageAbove)
-$textBox2.Top = $textBox.Top + $textBox.Height + 10
-
-# Paste the Excel range as a picture into the text box
-$textBox2.TextFrame.TextRange.Paste()
-
-# Remove the border of the text box
-$textBox2.Line.Visible = $false
+    # Insert some extra paragraphs to create a gap
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    $range.InsertParagraphAfter()
+    $range.Collapse([Microsoft.Office.Interop.Word.WdCollapseDirection]::wdCollapseEnd)
+    
 }
 
 # Save and close documents
