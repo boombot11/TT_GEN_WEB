@@ -1,5 +1,5 @@
 import path from 'path';
-
+import fs from 'fs';
 import executeCommand from '../components/CommandTemplate.js';
 
 // Get the directory name for ES Modules
@@ -23,6 +23,37 @@ export const executeExcelMacro = (filePath,macroName, userInputLab, userInputLec
 };
 
 
+export const fontResize = (tempFilePath, outputExcelFilePath, imageAbove, imageBelow) => {
+    return new Promise((resolve, reject) => {
+        console.log("Entering Excel macro function");
+
+        // Step 1: Duplicate the temp file to the specified output path
+        fs.copyFile(tempFilePath, outputExcelFilePath, (err) => {
+            if (err) {
+                console.error('❌ Failed to duplicate the temp file:', err);
+                return reject(err);
+            }
+            console.log(`✅ File duplicated successfully to: ${outputExcelFilePath}`);
+            
+            // Step 2: Construct the PowerShell command to execute the macro
+            const psScriptPath = path.join(__dirname, 'ExcelMacro.ps1').slice(1);    
+
+            // Construct the PowerShell command to run the Excel macro
+            const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${outputExcelFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
+
+            // Step 3: Execute the PowerShell command
+            executeCommand(psCommand)
+            .then((stdout) => {
+                console.log('✅ Excel macro executed successfully:', stdout);
+                resolve(stdout);
+            })
+            .catch((err) => {
+                console.error('❌ Excel macro execution failed:', err);
+                reject(err);
+            });
+        });
+    });
+};
 
 export const executeWord = (tempFilePath, outputWordFilePath,imageAbove,imageBelow) => {
     return new Promise((resolve, reject) => {

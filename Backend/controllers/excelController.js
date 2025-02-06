@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
-import {executeWord, executeExcelMacro, executeAddOns, extractSheets} from './excelFunctions.js';
+import {executeWord, executeExcelMacro, executeAddOns, extractSheets, fontResize} from './excelFunctions.js';
 
 // Get the directory name for ES Modules
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
@@ -88,7 +88,7 @@ export const uploadExcel = async (req, res) => {
         const outputWordFilePath = path.join(__dirname, '../uploads', 'outputDocument.docx').slice(1);
         const tempFilePath = path.join(__dirname, '../uploads', file.filename).slice(1);
         const macroName = 'RunAllWeb'; // The macro name to be executed
-
+        const tempWordExcel=path.join(__dirname, '../uploads', 'tempExcel.xlxs').slice(1);
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
         const AddOnEvents = [];
@@ -118,9 +118,9 @@ export const uploadExcel = async (req, res) => {
         console.log(`Room file path: ${newRoomFilePath}`);
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
-    
+       await fontResize(tempFilePath,tempWordExcel,imageAbove,imageBelow)
         // Execute Word-related operations
-        await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
+        await executeWord(tempWordExcel, outputWordFilePath, imageAbove, imageBelow);
 
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
