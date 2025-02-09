@@ -27,16 +27,9 @@ export const fontResize = (tempFilePath, outputExcelFilePath, imageAbove, imageB
     return new Promise((resolve, reject) => {
         console.log("Entering Excel macro function");
 
-        // Step 1: Duplicate the temp file to the specified output path
-        fs.copyFile(tempFilePath, outputExcelFilePath, (err) => {
-            if (err) {
-                console.error('❌ Failed to duplicate the temp file:', err);
-                return reject(err);
-            }
-            console.log(`✅ File duplicated successfully to: ${outputExcelFilePath}`);
-            
+      
             // Step 2: Construct the PowerShell command to execute the macro
-            const psScriptPath = path.join(__dirname, 'ExcelMacro.ps1').slice(1);    
+            const psScriptPath = path.join(__dirname, 'excelMacro.ps1').slice(1);    
 
             // Construct the PowerShell command to run the Excel macro
             const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${outputExcelFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
@@ -51,7 +44,7 @@ export const fontResize = (tempFilePath, outputExcelFilePath, imageAbove, imageB
                 console.error('❌ Excel macro execution failed:', err);
                 reject(err);
             });
-        });
+       
     });
 };
 
