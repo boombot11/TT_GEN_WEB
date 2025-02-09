@@ -78,7 +78,7 @@ foreach ($sheet in $workbook.Sheets) {
     # ---------------------------
     # Define the Excel range to be copied
     $excelSheet = $sheet
-    $rangeExcel = $excelSheet.Range("A8:I30")
+    $rangeExcel = $excelSheet.Range("A8:I29")
 
     # Check if the range is empty
     if ($rangeExcel.Cells.Count -eq 0) {

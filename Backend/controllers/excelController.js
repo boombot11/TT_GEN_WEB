@@ -15,7 +15,7 @@ export const uploadExcel = async (req, res) => {
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
         const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
-        const { classrooms, labs,HeaderText } = req.body; // Extract the user inputs and add-ons from the body
+        const { classrooms, labs,HeaderText, config_data} = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
         const headerText = Array.isArray(HeaderText) ? HeaderText.join(', ') : HeaderText;  // Join array of header text or use as string
@@ -76,8 +76,8 @@ export const uploadExcel = async (req, res) => {
         }
 
         // Read and parse the config.json file
-        const configData = JSON.parse(fs.readFileSync(configFile.path, 'utf-8'));
-
+        // const configData = JSON.parse(fs.readFileSync(configFile.path, 'utf-8'));
+        const configData = JSON.parse(config_data);
         // Create Track dynamically based on config data (for flexibility)
         const TrackKeys = Object.keys(configData).join(" ");
         const mapValues = Object.values(configData).join(", ");
@@ -88,7 +88,7 @@ export const uploadExcel = async (req, res) => {
         const outputWordFilePath = path.join(__dirname, '../uploads', 'outputDocument.docx').slice(1);
         const tempFilePath = path.join(__dirname, '../uploads', file.filename).slice(1);
         const macroName = 'RunAllWeb'; // The macro name to be executed
-        const tempWordExcel=path.join(__dirname, '../uploads', 'tempExcel.xlxs').slice(1);
+        const tempWordExcel=path.join(__dirname, '../uploads', 'tempExcel.xlsx').slice(1);
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
         const AddOnEvents = [];
@@ -120,7 +120,7 @@ export const uploadExcel = async (req, res) => {
         console.log(`Teacher file path: ${newTeacherFilePath}`);
        await fontResize(tempFilePath,tempWordExcel,imageAbove,imageBelow)
         // Execute Word-related operations
-        await executeWord(tempWordExcel, outputWordFilePath, imageAbove, imageBelow);
+        await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
 
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) {
