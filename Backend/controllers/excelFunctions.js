@@ -32,7 +32,7 @@ export const fontResize = (tempFilePath, outputExcelFilePath, imageAbove, imageB
             const psScriptPath = path.join(__dirname, 'excelMacro.ps1').slice(1);    
 
             // Construct the PowerShell command to run the Excel macro
-            const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${outputExcelFilePath}" -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
+            const psCommand = `powershell -ExecutionPolicy Bypass -File "${psScriptPath}" -ExcelFilePath "${tempFilePath}" -OutputExcelFilePath "${outputExcelFilePath}"  -ImageAbovePath "${imageAbove}" -ImageBelowPath "${imageBelow}"`;
 
             // Step 3: Execute the PowerShell command
             executeCommand(psCommand)

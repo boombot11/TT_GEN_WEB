@@ -14,7 +14,7 @@ export const uploadExcel = async (req, res) => {
 
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
-        const configFile = req.files['config'] ? req.files['config'][0] : null; // config.json file
+       
         const { classrooms, labs,HeaderText, config_data} = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
@@ -68,11 +68,6 @@ export const uploadExcel = async (req, res) => {
         if (!file.originalname.endsWith('.xlsm')) {
             console.error('Uploaded file is not an .xlsm file');
             return res.status(400).json({ error: 'Uploaded file must be an .xlsm file containing macros' });
-        }
-
-        if (!configFile) {
-            console.error('No config.json file uploaded');
-            return res.status(400).json({ error: 'No config.json file uploaded' });
         }
 
         // Read and parse the config.json file
