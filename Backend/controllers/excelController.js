@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import {executeWord, executeExcelMacro, executeAddOns, extractSheets, fontResize} from './excelFunctions.js';
+import { config } from 'dotenv';
 
 // Get the directory name for ES Modules
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
@@ -15,7 +16,7 @@ export const uploadExcel = async (req, res) => {
     try {
         const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
        
-        const { classrooms, labs,HeaderText, config_data} = req.body; // Extract the user inputs and add-ons from the body
+        const { classrooms, labs,HeaderText, config_data,Addons} = req.body; // Extract the user inputs and add-ons from the body
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
         const headerText = Array.isArray(HeaderText) ? HeaderText.join(', ') : HeaderText;  // Join array of header text or use as string
@@ -26,9 +27,15 @@ export const uploadExcel = async (req, res) => {
         }catch(e){
             temp=null
         }  // If addOns is a string, parse it into an array
-   const addOns=temp
-        const userInputLab = labs;
-        const userInputLecture = classrooms;
+        var addOns=null;
+   if(Addons!=null)
+   {
+addOns=Addons;
+   }
+        const userInputLab = "L1 L2";
+        const userInputLecture = "64 65";
+        console.log(labs)
+        console.log(classrooms)
         console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         console.log(addOns)
         var imageAbove = null;
@@ -72,6 +79,8 @@ export const uploadExcel = async (req, res) => {
 
         // Read and parse the config.json file
         // const configData = JSON.parse(fs.readFileSync(configFile.path, 'utf-8'));
+        console.log('before config data');
+        console.log(config_data)
         const configData = JSON.parse(config_data);
         // Create Track dynamically based on config data (for flexibility)
         const TrackKeys = Object.keys(configData).join(" ");
@@ -87,6 +96,9 @@ export const uploadExcel = async (req, res) => {
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
         const AddOnEvents = [];
+        console.log('lab lecture inputs')
+        console.log(userInputLab)
+        console.log(userInputLecture)
         await executeExcelMacro(tempFilePath,macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
       
         console.log('Macro executed successfully');

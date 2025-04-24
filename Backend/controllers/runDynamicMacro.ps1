@@ -21,9 +21,11 @@ $excel.DisplayAlerts = $true
 Write-Host "INPUTS ::"
 Write-Host $track
 Write-Host $map
-
+Write-Host $macroName
+Write-Host $userInputLab
+Write-Host $userInputLecture
 $workbook = $excel.Workbooks.Open($filePath)
-Write-Host "IN DYNAMIC MACRO OPENED WORKBOOK"
+Write-Host "IN DYNAMIC MACRO OPENED WORKBOOK "
 
 # Run the macro with the modified parameters
 try {
