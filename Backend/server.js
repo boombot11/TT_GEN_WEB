@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import router from "./routes/authRoutes.js";
-
+import mongoose from "mongoose";
 // Ensure it’s running on Windows before starting the server
 // if (process.platform !== 'win32') {
 //     console.log('This application is only supported on Windows.');
@@ -10,6 +10,7 @@ import router from "./routes/authRoutes.js";
 
 const app = express();
 
+
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: '*' }));
@@ -17,6 +18,20 @@ app.use(cors({ origin: '*' }));
 // Routes
 const PORT = process.env.PORT || 5000; // Use the environment variable for PORT or fallback to 5000
 app.listen(PORT, () => {
+    const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://boombot11:Iamnoob11@test.md8hana.mongodb.net/fsdLab?retryWrites=true&w=majority&appName=Test';
+
+// Connect to MongoDB
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error);
+  });
+
     console.log(`Server is running on port ${PORT}`);
 });
 

@@ -110,13 +110,13 @@ foreach ($sheet in $workbook.Sheets) {
             # Access the range of each cell directly
             $cellRange = $cell.Range
             # Log the current font size before changing
-            Write-Host "Before Change - Row: $($row.Index), Column: $($cell.ColumnIndex), Font Size: $($cellRange.Font.Size)"
+   
 
             # Set the font size for the cell's range
             $cellRange.Font.Size = 10
 
             # Log the font size after applying the change
-            Write-Host "After Change - Row: $($row.Index), Column: $($cell.ColumnIndex), Font Size: $($cellRange.Font.Size)"
+          
         }
     }
 
