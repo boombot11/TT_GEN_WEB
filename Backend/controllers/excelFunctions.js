@@ -6,10 +6,38 @@ import executeCommand from '../components/CommandTemplate.js';
 const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname));
 
 
-export const executeExcelMacro = (filePath,macroName, userInputLab, userInputLecture,Track,map) => {
+
+export const executeStatisticsMacro = (filePath, initialSheets) => {
+    return new Promise((resolve, reject) => {
+        const psScriptPath = path.join(__dirname, 'runStatisticsMacro.ps1').slice(1);
+        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}"`;
+        
+        executeCommand(command)
+        .then((stdout) => {
+            try {
+                // Parse the JSON output from PowerShell
+                const result = JSON.parse(stdout);
+                console.log('statistics ran done')
+                console.log(result)
+                console.log('✅ Statistics macro executed successfully');
+                resolve(result);
+            } catch (e) {
+                console.error('❌ Failed to parse macro output:', e);
+                reject(new Error('Failed to parse macro output'));
+            }
+        })
+        .catch((err) => {
+            console.error('❌ Excel macro execution failed:', err);
+            reject(err);
+        });
+    });
+};
+
+
+export const executeExcelMacro = (filePath,macroName, userInputLab, userInputLecture,Track,map,ImageAbove,ImageBelow) => {
     return new Promise((resolve, reject) => {
         const psScriptPath = path.join(__dirname, 'runDynamicMacro.ps1').slice(1);
-        const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" `;
+         const command = `powershell -ExecutionPolicy ByPass -File "${psScriptPath}" "${filePath}" "${macroName}" "${userInputLab}" "${userInputLecture}" "${Track}" "${map}" "${ImageAbove}" "${ImageBelow}"`;
         executeCommand(command)
         .then((stdout) => {
             console.log('✅ Excel macro executed successfully:', stdout);

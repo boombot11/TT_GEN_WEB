@@ -3,10 +3,10 @@ param (
     [string]$macroName,
     [string]$userInputLab,
     [string]$userInputLecture,
-    [string]$track,  # Track is passed as a JSON string
-    [string]$map   # Map is passed as a JSON string
-
- 
+    [string]$track,
+    [string]$map,
+    [string]$headerPath,   # <--- new
+    [string]$footerPath    # <--- new
 )
 
 # Create an instance of Excel
@@ -30,7 +30,7 @@ Write-Host "IN DYNAMIC MACRO OPENED WORKBOOK "
 # Run the macro with the modified parameters
 try {
     # Run the macro with user inputs, the converted Dictionaries, and the AddOnEvents
-    $excel.Run($macroName, $userInputLab, $userInputLecture, $track, $map)
+      $excel.Run($macroName, $userInputLab, $userInputLecture, $track, $map, $headerPath, $footerPath)
 } catch {
     Write-Host "Error running macro: $_"
 }

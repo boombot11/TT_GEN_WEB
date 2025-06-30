@@ -52,6 +52,29 @@ const saveFormData= async (req, res) => {
   }
 };
 
+const deleteFormData = async (req, res) => {
+  try {
+    const { title } = req.body; // Extract title from the request body
+
+    if (!title) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+
+    // Find and delete the document with the given title
+    const result = await FormData.findOneAndDelete({ title });
+
+    if (!result) {
+      return res.status(404).json({ message: 'Config not found' });
+    }
+
+    return res.status(200).json({ message: 'Config deleted successfully', result });
+  } catch (error) {
+    console.error('Error deleting form data:', error);
+    return res.status(500).json({ message: 'Error deleting form data', error: error.message });
+  }
+};
+
+export const deleteForm = deleteFormData;
 export const saveForm=saveFormData;
 export const getForm=getFormData;
 export const getFormSpecific=getFormSpecificData;

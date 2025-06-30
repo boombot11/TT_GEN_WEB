@@ -3,7 +3,7 @@ import express from "express";
 // import { verifyToken } from "../middleware/authMiddleware.js";
 import uploadMiddleware from "../middleware/uploadMiddleware.js";
 import { uploadExcel} from "../controllers/excelController.js";
-import { saveForm,getForm, getFormSpecific } from "../controllers/FormDataController.js";
+import { saveForm,getForm, getFormSpecific, deleteForm } from "../controllers/FormDataController.js";
 
 const router = express.Router();
 
@@ -18,6 +18,7 @@ const router = express.Router();
 // });
 router.post('/upload-excel', uploadMiddleware, uploadExcel);
 router.post('/saveForm',saveForm);
-router.get('/getForm',getForm)
+router.get('/getForm',getForm);
+router.post('/deleteForm',deleteForm)
 router.post('/SpecificForm',getFormSpecific);
 export default router;

@@ -18,7 +18,10 @@ export const uploadExcel = async (req, res) => {
         const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
         const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
 
-        const { classrooms, labs, HeaderText, config_data, addOns } = req.body;
+        const { classrooms, labs, HeaderText, config_data, addOns,Department } = req.body;
+        if (!Department) {
+         return res.status(400).json({ error: 'Department is required when header/footer are missing.' });
+        }
 
         const headerText = Array.isArray(HeaderText) ? HeaderText.join(', ') : HeaderText;
 
@@ -49,17 +52,40 @@ export const uploadExcel = async (req, res) => {
         console.log(userInputLab);
         console.log(userInputLecture);
 
-        if (!headerFile) {
-            imageAbove = path.join(__dirname, 'Header.png').slice(1);
-        } else {
-            imageAbove = path.join(__dirname, '../uploads', headerFile.filename).slice(1);
-        }
 
-        if (!footerFile) {
-            imageBelow = path.join(__dirname, 'Footer.png').slice(1);
-        } else {
-            imageBelow = path.join(__dirname, '../uploads', footerFile.filename).slice(1);
-        }
+        const departmentDir = path.join(__dirname, '..', 'Department', Department).slice(1);
+if (!fs.existsSync(departmentDir)) {
+    fs.mkdirSync(departmentDir, { recursive: true });
+}
+
+// HEADER
+const headerTarget = path.join(departmentDir, 'header.png');
+if (!headerFile) {
+    if (!fs.existsSync(headerTarget)) {
+        const defaultHeader = path.join(__dirname, 'Header.png').slice(1);
+        fs.copyFileSync(defaultHeader, headerTarget);
+    }
+    imageAbove = headerTarget; // Only slice here for your system compatibility
+} else {
+    const uploadedHeaderPath = path.join(__dirname, '../uploads', headerFile.filename).slice(1);
+    fs.copyFileSync(uploadedHeaderPath, headerTarget);
+    imageAbove = headerTarget;
+}
+
+// FOOTER
+const footerTarget = path.join(departmentDir, 'footer.png');
+if (!footerFile) {
+    if (!fs.existsSync(footerTarget)) {
+        const defaultFooter = path.join(__dirname, 'Footer.png').slice(1);
+        fs.copyFileSync(defaultFooter, footerTarget);
+    }
+    imageBelow = footerTarget;
+} else {
+    const uploadedFooterPath = path.join(__dirname, '../uploads', footerFile.filename).slice(1);
+    fs.copyFileSync(uploadedFooterPath, footerTarget);
+    imageBelow = footerTarget;
+}
+
 
         if (!file) {
             console.error('No file uploaded');
@@ -92,20 +118,36 @@ export const uploadExcel = async (req, res) => {
 
         console.log('Temp file path:', tempFilePath);
         console.log('Running macro:', macroName);
-        await executeExcelMacro(tempFilePath, macroName, userInputLab, userInputLecture, TrackKeys, mapValues);
+        console.log(imageAbove)
+        console.log(imageBelow)
+        await executeExcelMacro(tempFilePath, macroName, userInputLab, userInputLecture, TrackKeys, mapValues, imageAbove, imageBelow);
         console.log('Macro executed successfully');
 
         console.log(addOnsData);
         console.log('Processing firstttttttttttttt add-ons...');
-        if (addOnsData) {
-            console.log('Processing add-ons...');
-            addOnsData.forEach((addOn, index) => {
-                const { day, sheetName, content, time } = addOn;
-                console.log(`Add-On ${index + 1}: Day: ${day}, Sheet Name: ${sheetName}, Content: ${content}, Time: ${time}`);
-                AddOnEvents.push({ day, sheetName, content, time });
-            });
-            await executeAddOns(tempFilePath, AddOnEvents, macroName);
-        }
+      if (Array.isArray(addOnsData)) {
+    const validAddOns = addOnsData.filter(addOn => {
+        return addOn &&
+            addOn.day?.trim() !== '' &&
+            addOn.sheetName?.trim() !== '' &&
+            addOn.content?.trim() !== '' &&
+            addOn.time?.trim() !== '';
+    });
+
+    if (validAddOns.length > 0) {
+        console.log('Processing valid add-ons...');
+        validAddOns.forEach((addOn, index) => {
+            const { day, sheetName, content, time } = addOn;
+            console.log(`Add-On ${index + 1}: Day: ${day}, Sheet Name: ${sheetName}, Content: ${content}, Time: ${time}`);
+            AddOnEvents.push({ day, sheetName, content, time });
+        });
+
+        await executeAddOns(tempFilePath, AddOnEvents, macroName);
+    } else {
+        console.log('No valid add-ons found. Skipping add-on execution.');
+    }
+}
+
         console.log(AddOnEvents);
 
         const { newRoomFilePath, newLabFilePath, newTeacherFilePath } = await extractSheets(tempFilePath, classrooms, labs);
@@ -114,8 +156,8 @@ export const uploadExcel = async (req, res) => {
         console.log(`Lab file path: ${newLabFilePath}`);
         console.log(`Teacher file path: ${newTeacherFilePath}`);
 
-        await fontResize(tempFilePath, tempWordExcel, imageAbove, imageBelow);
-        await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
+        // await fontResize(tempFilePath, tempWordExcel, imageAbove, imageBelow);
+        // await executeWord(tempFilePath, outputWordFilePath, imageAbove, imageBelow);
 
         // Check that the files exist before streaming them
         if (fs.existsSync(newRoomFilePath)) console.log("Room file exists:", newRoomFilePath);
@@ -147,17 +189,20 @@ export const uploadExcel = async (req, res) => {
                 }, delay);
             });
         };
-
+        
         await addFileToZipWithDelay(newRoomFilePath, 'room.xlsx', 0);
         await addFileToZipWithDelay(newLabFilePath, 'lab.xlsx', 2000);
         await addFileToZipWithDelay(newTeacherFilePath, 'teachers.xlsx', 4000);
         await addFileToZipWithDelay(outputWordFilePath, 'outputDocument.docx', 6000);
         await addFileToZipWithDelay(tempFilePath, 'all_TimeTables.xlsm', 8000);
-
+      
         const zipBuffer = zip.toBuffer();
         res.send(zipBuffer);
         const files = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
         replaceFiles(files);
+        fs.unlinkSync(tempFilePath);
+        //fs.unlinkSync(tempWordExcel);
+        //fs.unlinkSync(outputWordFilePath);
         // res.send('doneee');
         console.log('Zip file sent successfully.');
 
@@ -195,4 +240,8 @@ function replaceFiles(files) {
             console.log(`File not found in B: ${fileInB}`);
         }
     });
+}
+
+function normalizePath(p) {
+    return path.normalize(p).replace(/^\\/, '');
 }
