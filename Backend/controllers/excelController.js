@@ -13,11 +13,12 @@ export const uploadExcel = async (req, res) => {
     console.log('Entering uploadExcel function...');
 
     try {
+        const files = req.files || [];
         // ----------------------------- STAGE 1: INPUT HANDLING -----------------------------
-        const file = req.files['file'] ? req.files['file'][0] : null; // .xlsm file
-        const headerFile = req.files['HEADER'] ? req.files['HEADER'][0] : null; // HEADER image file
-        const footerFile = req.files['FOOTER'] ? req.files['FOOTER'][0] : null; // FOOTER image file
-
+        const file = files.find(f => f.originalname.toLowerCase().endsWith('.xlsm'));
+        const configFile = files.find(f => f.originalname.toLowerCase().endsWith('.json'));
+        const headerFile = files.find(f => f.fieldname === 'HEADER');
+        const footerFile = files.find(f => f.fieldname === 'FOOTER');
         const { classrooms, labs, HeaderText, config_data, addOns,Department } = req.body;
         if (!Department) {
          return res.status(400).json({ error: 'Department is required when header/footer are missing.' });
@@ -96,11 +97,28 @@ if (!footerFile) {
             console.error('Uploaded file is not an .xlsm file');
             return res.status(400).json({ error: 'Uploaded file must be an .xlsm file containing macros' });
         }
+         // --- The configuration handling logic you added previously still works perfectly ---
+        let configData = {};
+
+        if (configFile) {
+            console.log('Configuration found in uploaded file:', configFile.originalname);
+            try {
+                const rawData = fs.readFileSync(configFile.path, 'utf8');
+                configData = JSON.parse(rawData);
+                fs.unlinkSync(configFile.path); 
+            } catch (err) {
+                return res.status(400).json({ error: 'Invalid config.json file format.' });
+            }
+        } else if (config_data) {
+            console.log('Configuration found in request body parameter.');
+            // ... fallback logic
+        } else {
+            console.log('No configuration data provided.');
+        }
 
         console.log('before config data');
         console.log(config_data);
 
-        const configData = JSON.parse(config_data);
         const TrackKeys = Object.keys(configData).join(" ");
         const mapValues = Object.values(configData).join(", ");
 
@@ -198,12 +216,13 @@ if (!footerFile) {
       
         const zipBuffer = zip.toBuffer();
         res.send(zipBuffer);
-        const files = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
-        replaceFiles(files);
-        fs.unlinkSync(tempFilePath);
-        //fs.unlinkSync(tempWordExcel);
-        //fs.unlinkSync(outputWordFilePath);
-        // res.send('doneee');
+        const files_List = ['room.xlsx', 'teachers.xlsx', 'lab.xlsx'];
+        replaceFiles(files_List);
+       safeUnlink(tempFilePath);
+safeUnlink(configFile?.path); // Use optional chaining for safety
+safeUnlink(tempWordExcel);
+safeUnlink(outputWordFilePath);
+        res.send('doneee');
         console.log('Zip file sent successfully.');
 
         
@@ -215,6 +234,18 @@ if (!footerFile) {
 };
 
 
+function safeUnlink(filePath) {
+    if (!filePath) return; // Guard against null or undefined paths
+
+    try {
+        fs.unlinkSync(filePath);
+        console.log(`Cleaned up: ${filePath}`);
+    } catch (err) {
+        // Ignores errors, most commonly "file not found"
+        // You can add logging here if you want to see the errors.
+        // console.warn(`Could not delete ${filePath}: ${err.message}`);
+    }
+}
 
 
 // Function to delete and replace files
