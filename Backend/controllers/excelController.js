@@ -222,8 +222,6 @@ if (!footerFile) {
 safeUnlink(configFile?.path); // Use optional chaining for safety
 safeUnlink(tempWordExcel);
 safeUnlink(outputWordFilePath);
-        res.send('doneee');
-        console.log('Zip file sent successfully.');
 
         
 
